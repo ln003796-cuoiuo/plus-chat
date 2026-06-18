@@ -12,12 +12,13 @@ dependencies:
   http: ^1.1.0
   shared_preferences: ^2.2.2
   intl: ^0.18.1
-  flutter_launcher_icons: ^0.13.1  # Для генерации иконок
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true

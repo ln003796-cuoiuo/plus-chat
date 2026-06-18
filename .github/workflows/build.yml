@@ -28,11 +28,14 @@ jobs:
     - name: Get dependencies
       run: flutter pub get
     
+    - name: Generate app icons
+      run: dart run flutter_launcher_icons
+    
     - name: Build APK
       run: flutter build apk --release
     
     - name: Upload APK
-      uses: actions/upload-artifact@v4  # ← ИЗМЕНЕНО: v3 → v4
+      uses: actions/upload-artifact@v4
       with:
         name: app-release.apk
         path: build/app/outputs/flutter-apk/app-release.apk

@@ -1,0 +1,32 @@
+name: Generate Icons
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0'
+        channel: 'stable'
+    
+    - name: Get dependencies
+      run: flutter pub get
+    
+    - name: Generate icons
+      run: flutter pub run flutter_launcher_icons
+    
+    - name: Commit icons
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add android/ ios/
+        git commit -m "🎨 Generate app icons" || echo "No changes to commit"
+        git push
