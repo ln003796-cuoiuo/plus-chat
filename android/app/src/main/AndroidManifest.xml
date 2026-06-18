@@ -89,7 +89,7 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="pluschat"/>
                 <data android:scheme="plus_chat"/>
-                <data android:scheme="https" android:host="плюсчат.рф"/>
+                <data android:scheme="https" android:host="xn--80aagf1avb.xn--p1ai"/>
             </intent-filter>
 
             <!-- Share extension (получение файлов из других приложений) -->

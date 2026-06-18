@@ -7,7 +7,7 @@ import '../models/message.dart';
 
 class ApiService {
   // ⚠️ ЗАМЕНИ на свой домен!
-  static const String baseUrl = 'https://плюсчат.рф/api';
+  static const String baseUrl = 'https://xn--80aagf1avb.xn--p1ai/api';
 
   /// Базовый метод для всех HTTP-запросов
   static Future<Map<String, dynamic>> _request(
