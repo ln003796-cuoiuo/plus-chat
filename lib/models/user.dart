@@ -1,0 +1,222 @@
+class User {
+  final String id;
+  final String? email;
+  final String? username;
+  final String firstName;
+  final String? lastName;
+  final String? middleName;
+  final String? nickname;
+  final String? bio;
+  final String? birthDate;
+  final String? avatarUrl;
+  final String? avatarThumbUrl;
+  final String? avatarColor;
+  final String? avatarEmoji;
+  final String? bannerUrl;
+  final String? country;
+  final String? city;
+  final String? timezone;
+  final String? language;
+  final String onlineStatus;
+  final String? lastSeen;
+  final String? customStatusText;
+  final String? customStatusEmoji;
+  final String premiumStatus;
+  final int plusCoins;
+  final int giftsReceivedCount;
+  final int giftsSentCount;
+  final int totalGiftsValue;
+  final String? createdAt;
+
+  // Социальные сети
+  final String? website;
+  final String? instagram;
+  final String? telegram;
+  final String? twitter;
+  final String? github;
+  final String? linkedin;
+
+  User({
+    required this.id,
+    this.email,
+    this.username,
+    required this.firstName,
+    this.lastName,
+    this.middleName,
+    this.nickname,
+    this.bio,
+    this.birthDate,
+    this.avatarUrl,
+    this.avatarThumbUrl,
+    this.avatarColor,
+    this.avatarEmoji,
+    this.bannerUrl,
+    this.country,
+    this.city,
+    this.timezone,
+    this.language,
+    this.onlineStatus = 'offline',
+    this.lastSeen,
+    this.customStatusText,
+    this.customStatusEmoji,
+    this.premiumStatus = 'free',
+    this.plusCoins = 0,
+    this.giftsReceivedCount = 0,
+    this.giftsSentCount = 0,
+    this.totalGiftsValue = 0,
+    this.createdAt,
+    this.website,
+    this.instagram,
+    this.telegram,
+    this.twitter,
+    this.github,
+    this.linkedin,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] ?? '',
+      email: json['email'],
+      username: json['username'],
+      firstName: json['first_name'] ?? '',
+      lastName: json['last_name'],
+      middleName: json['middle_name'],
+      nickname: json['nickname'],
+      bio: json['bio'],
+      birthDate: json['birth_date'],
+      avatarUrl: json['avatar_url'],
+      avatarThumbUrl: json['avatar_thumb_url'],
+      avatarColor: json['avatar_color'],
+      avatarEmoji: json['avatar_emoji'],
+      bannerUrl: json['banner_url'],
+      country: json['country'],
+      city: json['city'],
+      timezone: json['timezone'],
+      language: json['language'],
+      onlineStatus: json['online_status'] ?? 'offline',
+      lastSeen: json['last_seen'],
+      customStatusText: json['custom_status_text'],
+      customStatusEmoji: json['custom_status_emoji'],
+      premiumStatus: json['premium_status'] ?? 'free',
+      plusCoins: json['plus_coins'] ?? 0,
+      giftsReceivedCount: json['gifts_received_count'] ?? 0,
+      giftsSentCount: json['gifts_sent_count'] ?? 0,
+      totalGiftsValue: json['total_gifts_value'] ?? 0,
+      createdAt: json['created_at'],
+      website: json['website'],
+      instagram: json['instagram'],
+      telegram: json['telegram'],
+      twitter: json['twitter'],
+      github: json['github'],
+      linkedin: json['linkedin'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'username': username,
+      'first_name': firstName,
+      'last_name': lastName,
+      'middle_name': middleName,
+      'nickname': nickname,
+      'bio': bio,
+      'birth_date': birthDate,
+      'avatar_url': avatarUrl,
+      'avatar_thumb_url': avatarThumbUrl,
+      'avatar_color': avatarColor,
+      'avatar_emoji': avatarEmoji,
+      'banner_url': bannerUrl,
+      'country': country,
+      'city': city,
+      'timezone': timezone,
+      'language': language,
+      'online_status': onlineStatus,
+      'last_seen': lastSeen,
+      'custom_status_text': customStatusText,
+      'custom_status_emoji': customStatusEmoji,
+      'premium_status': premiumStatus,
+      'plus_coins': plusCoins,
+      'gifts_received_count': giftsReceivedCount,
+      'gifts_sent_count': giftsSentCount,
+      'total_gifts_value': totalGiftsValue,
+      'created_at': createdAt,
+      'website': website,
+      'instagram': instagram,
+      'telegram': telegram,
+      'twitter': twitter,
+      'github': github,
+      'linkedin': linkedin,
+    };
+  }
+
+  // Отображаемое имя
+  String get displayName {
+    final parts = [firstName, lastName].where((p) => p != null && p.isNotEmpty);
+    return parts.isEmpty ? (username ?? 'Пользователь') : parts.join(' ');
+  }
+
+  // Инициалы для аватара
+  String get initials {
+    final first = firstName.isNotEmpty ? firstName[0].toUpperCase() : '';
+    final last = (lastName?.isNotEmpty ?? false) ? lastName![0].toUpperCase() : '';
+    return (first + last).isEmpty ? '?' : first + last;
+  }
+
+  // Онлайн ли сейчас
+  bool get isOnline => onlineStatus == 'online';
+
+  // Премиум ли
+  bool get isPremium => premiumStatus != 'free';
+
+  User copyWith({
+    String? id,
+    String? email,
+    String? username,
+    String? firstName,
+    String? lastName,
+    String? bio,
+    String? avatarUrl,
+    String? onlineStatus,
+    int? plusCoins,
+  }) {
+    return User(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      username: username ?? this.username,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      bio: bio ?? this.bio,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      onlineStatus: onlineStatus ?? this.onlineStatus,
+      plusCoins: plusCoins ?? this.plusCoins,
+      // остальные поля оставляем
+      middleName: middleName,
+      nickname: nickname,
+      birthDate: birthDate,
+      avatarThumbUrl: avatarThumbUrl,
+      avatarColor: avatarColor,
+      avatarEmoji: avatarEmoji,
+      bannerUrl: bannerUrl,
+      country: country,
+      city: city,
+      timezone: timezone,
+      language: language,
+      lastSeen: lastSeen,
+      customStatusText: customStatusText,
+      customStatusEmoji: customStatusEmoji,
+      premiumStatus: premiumStatus,
+      giftsReceivedCount: giftsReceivedCount,
+      giftsSentCount: giftsSentCount,
+      totalGiftsValue: totalGiftsValue,
+      createdAt: createdAt,
+      website: website,
+      instagram: instagram,
+      telegram: telegram,
+      twitter: twitter,
+      github: github,
+      linkedin: linkedin,
+    );
+  }
+}
