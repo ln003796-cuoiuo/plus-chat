@@ -7,7 +7,7 @@ import '../models/message.dart';
 
 class ApiService {
   // ⚠️ ЗАМЕНИ на свой домен!
-  static const String baseUrl = 'https://плюсчат.рф/api';
+  static const String baseUrl = 'https://твой-сайт.ru/api';
 
   /// Базовый метод для всех HTTP-запросов
   static Future<Map<String, dynamic>> _request(
@@ -219,15 +219,15 @@ class ApiService {
     required String chatId,
     required String content,
     String type = 'text',
-    int? replyTo,
+    String? replyTo,  // ← ИСПРАВЛЕНО: было int?
   }) async {
     final body = {
       'chat_id': chatId,
       'content': content,
       'type': type,
     };
-    if (replyTo != null) body['reply_to'] = replyTo;
-
+    if (replyTo != null) body['reply_to'] = replyTo;  // ← Теперь работает!
+    
     final res = await _request('POST', '/messages/send', body: body);
     if (res['success'] == true && res['message'] != null) {
       return Message.fromJson(res['message']);
