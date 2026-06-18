@@ -28,7 +28,7 @@ flutter:
 # Конфигурация иконок
 flutter_launcher_icons:
   android: true
-  ios: true
+  ios: false  # ← Отключаем iOS
   image_path: "assets/icon.png"
   min_sdk_android: 21
   adaptive_icon_background: "#075E54"
