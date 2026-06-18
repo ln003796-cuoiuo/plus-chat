@@ -1,3 +1,0 @@
-#!/bin/sh
-# Stub gradlew - GitHub Actions will use its own Gradle
-exec gradle "$@"
