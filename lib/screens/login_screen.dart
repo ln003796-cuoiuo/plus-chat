@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart';
-import 'register_screen.dart';
-import 'chats_screen.dart';
-import 'setup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,118 +9,169 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _loading = false;
-  bool _hidePass = true;
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  
+  bool _isLoading = false;
+  bool _useCodeLogin = false;
 
-  Future<void> _login() async {
-    if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) return;
-    setState(() => _loading = true);
-
-    try {
-      final res = await ApiService.login(
-       email: _identifierController.text.trim(),
-       password: _passwordController.text,
-      );
-
-      if (res['success'] == true) {
-        await AuthService.saveTokens(
-          res['access_token'],
-          res['refresh_token'],
-          res['user']?['id'],
-        );
-
-        if (!mounted) return;
-        final needsSetup = res['user']?['setup_required'] ?? false;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => needsSetup
-                ? const SetupScreen()
-                : const ChatsScreen(),
-          ),
-        );
-      } else {
-        _showError(res['error'] ?? 'Ошибка входа');
-      }
-    } catch (e) {
-      _showError('Ошибка сети: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
-    );
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      if (_useCodeLogin) {
+        // Вход по коду
+        final response = await ApiService.loginWithCodeRequest(
+          identifier: _emailController.text.trim(),
+        );
+
+        if (response['success'] == true) {
+          if (mounted) {
+            Navigator.pushNamed(
+              context,
+              '/verify',
+              arguments: {
+                'email': response['email']?.toString() ?? _emailController.text.trim(),
+                'type': 'login',
+              },
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response['error'] ?? 'Ошибка'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } else {
+        // Вход по паролю
+        final response = await ApiService.login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        if (response['success'] == true) {
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response['error'] ?? 'Ошибка входа'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка сети: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Icon(Icons.chat_bubble_rounded,
-                    size: 80, color: Theme.of(context).primaryColor),
+      appBar: AppBar(
+        title: const Text('Вход'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 40),
+              const Icon(Icons.chat_bubble, size: 80, color: Colors.green),
+              const SizedBox(height: 20),
+              Text(
+                'Плюс Чат',
+                style: Theme.of(context).textTheme.headlineLarge,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 40),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email или Username',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Введите email или username';
+                  }
+                  return null;
+                },
+              ),
+              if (!_useCodeLogin) ...[
                 const SizedBox(height: 16),
-                Text('Плюс Чат',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineLarge),
-                const SizedBox(height: 48),
-                TextField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
+                TextFormField(
+                  controller: _passwordController,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                    labelText: 'Пароль',
                     border: OutlineInputBorder(),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passCtrl,
-                  obscureText: _hidePass,
-                  decoration: InputDecoration(
-                    labelText: 'Пароль',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                          _hidePass ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _hidePass = !_hidePass),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _loading ? null : _login,
-                  style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16)),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Войти', style: TextStyle(fontSize: 16)),
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                  ),
-                  child: const Text('Нет аккаунта? Зарегистрироваться'),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Введите пароль';
+                    }
+                    return null;
+                  },
                 ),
               ],
-            ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _login,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator()
+                    : const Text('Войти', style: TextStyle(fontSize: 16)),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _useCodeLogin = !_useCodeLogin;
+                    _passwordController.clear();
+                  });
+                },
+                child: Text(_useCodeLogin 
+                    ? 'Войти по паролю' 
+                    : 'Войти по коду из почты'),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/register'),
+                child: const Text('Нет аккаунта? Зарегистрироваться'),
+              ),
+            ],
           ),
         ),
       ),
