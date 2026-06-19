@@ -19,7 +19,7 @@ class PlusChatApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF075E54), // Зелёный как в WhatsApp
+          seedColor: const Color(0xFF075E54),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
@@ -39,7 +39,7 @@ class PlusChatApp extends StatelessWidget {
           return MaterialPageRoute(
             builder: (context) => VerifyScreen(
               email: args['email'] as String,
-              type: args['type'] as String,
+              type: args['type'] as String? ?? 'registration',
             ),
           );
         }

@@ -1,109 +1,198 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart';
-import 'setup_screen.dart';
 
 class VerifyScreen extends StatefulWidget {
   final String email;
-  const VerifyScreen({super.key, required this.email});
+  final String type; // 'registration' или 'login'
+
+  const VerifyScreen({
+    super.key,
+    required this.email,
+    required this.type,
+  });
 
   @override
   State<VerifyScreen> createState() => _VerifyScreenState();
 }
 
 class _VerifyScreenState extends State<VerifyScreen> {
-  final _codeCtrl = TextEditingController();
-  bool _loading = false;
+  final _codeController = TextEditingController();
+  bool _isLoading = false;
+  int _resendTimer = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startResendTimer();
+  }
+
+  void _startResendTimer() {
+    setState(() => _resendTimer = 60);
+    _tickTimer();
+  }
+
+  void _tickTimer() {
+    Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      if (_resendTimer > 0) {
+        setState(() => _resendTimer--);
+        _tickTimer();
+      }
+    });
+  }
 
   Future<void> _verify() async {
-    if (_codeCtrl.text.length != 6) {
-      _showError('Введите 6-значный код');
+    final code = _codeController.text.trim();
+    if (code.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Введите 6-значный код')),
+      );
       return;
     }
-    setState(() => _loading = true);
+
+    setState(() => _isLoading = true);
 
     try {
-      final res = await ApiService.verifyEmail(
+      final response = await ApiService.verifyEmail(
         email: widget.email,
-        code: _codeCtrl.text.trim(),
+        code: code,
       );
 
-      if (res['success'] == true) {
-        await AuthService.saveTokens(
-          res['access_token'],
-          res['refresh_token'],
-          res['user_id'],
-        );
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const SetupScreen()),
-        );
+      if (response['success'] == true) {
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        }
       } else {
-        _showError(res['error'] ?? 'Неверный код');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? response['error'] ?? 'Ошибка верификации'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
-      _showError('Ошибка сети: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка сети: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
-    );
+  Future<void> _resendCode() async {
+    if (_resendTimer > 0) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await ApiService.resendCode(
+        email: widget.email,
+        type: widget.type,
+      );
+
+      if (response['success'] == true) {
+        _startResendTimer();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Код отправлен повторно')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['error'] ?? 'Ошибка'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка сети: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.mark_email_unread_outlined, size: 72),
-              const SizedBox(height: 16),
-              Text('Подтвердите email',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              Text(
-                'Мы отправили 6-значный код на\n${widget.email}',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
+      appBar: AppBar(
+        title: const Text('Подтверждение email'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 40),
+            const Icon(Icons.email, size: 80, color: Colors.blue),
+            const SizedBox(height: 20),
+            Text(
+              'Введите код из письма',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Код отправлен на ${widget.email}',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 40),
+            TextField(
+              controller: _codeController,
+              decoration: const InputDecoration(
+                labelText: 'Код подтверждения',
+                border: OutlineInputBorder(),
+                hintText: '123456',
               ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _codeCtrl,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, letterSpacing: 8),
-                decoration: const InputDecoration(
-                  hintText: '••••••',
-                  border: OutlineInputBorder(),
-                  counterText: '',
-                ),
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 24,
+                letterSpacing: 8,
               ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _loading ? null : _verify,
-                style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Подтвердить',
-                        style: TextStyle(fontSize: 16)),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _verify,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-            ],
-          ),
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : const Text('Подтвердить', style: TextStyle(fontSize: 16)),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _resendTimer > 0 || _isLoading ? null : _resendCode,
+              child: _resendTimer > 0
+                  ? Text('Отправить код повторно через $_resendTimer сек')
+                  : const Text('Отправить код повторно'),
+            ),
+          ],
         ),
       ),
     );

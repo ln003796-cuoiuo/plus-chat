@@ -30,10 +30,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _loading = true);
     try {
       final res = await ApiService.register(
-        email: _emailCtrl.text.trim(),
-        password: _passCtrl.text,
-        firstName: _nameCtrl.text.trim(),
-      );
+       firstName: _firstNameController.text.trim(),
+       lastName: _lastNameController.text.trim(),    // ← ОБЯЗАТЕЛЬНО!
+       middleName: _middleNameController.text.trim().isEmpty 
+       ? null 
+       : _middleNameController.text.trim(),
+       username: _usernameController.text.trim(),
+       email: _emailController.text.trim().toLowerCase(),
+       password: _passwordController.text,
+     );
 
       if (res['success'] == true) {
         if (!mounted) return;

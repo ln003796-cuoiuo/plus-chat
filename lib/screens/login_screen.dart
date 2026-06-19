@@ -24,8 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final res = await ApiService.login(
-        email: _emailCtrl.text.trim(),
-        password: _passCtrl.text,
+       email: _identifierController.text.trim(),
+       password: _passwordController.text,
       );
 
       if (res['success'] == true) {

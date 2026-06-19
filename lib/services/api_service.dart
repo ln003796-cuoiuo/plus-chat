@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 import '../models/user.dart';
+import '../models/chat.dart';
+import '../models/message.dart';
 
 class ApiService {
-  // ✅ НОВАЯ СТРУКТУРА СЕРВЕРА - без /api, напрямую к папкам
   static const String baseUrl = 'https://xn--80avljg2a1c.xn--p1ai';
 
   // ============================================
@@ -49,9 +50,13 @@ class ApiService {
     }
 
     try {
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      return {'success': false, 'error': 'Неверный формат ответа'};
     } catch (e) {
-      return {'success': false, 'error': 'Неверный ответ сервера'};
+      return {'success': false, 'error': 'Не удалось разобрать ответ сервера'};
     }
   }
 
@@ -82,30 +87,24 @@ class ApiService {
   // ============================================
 
   /// Вход по паролю
-  static Future<Map<String, dynamic>> loginWithPassword({
-    required String identifier,
+  static Future<Map<String, dynamic>> login({
+    required String email,
     required String password,
   }) async {
     final data = await _request('POST', '/login/login', auth: false, body: {
       'type': 'password',
-      'identifier': identifier,
+      'identifier': email,
       'password': password,
     });
 
     if (data['success'] == true && data['access_token'] != null) {
-      await AuthService.saveTokens(
-        data['access_token'],
-        data['refresh_token'],
-      );
-      if (data['user'] != null && data['user']['id'] != null) {
-        await AuthService.saveUserId(data['user']['id']);
-      }
+      await _saveAuthData(data);
     }
 
     return data;
   }
 
-  /// Запрос кода для входа (без code)
+  /// Вход по коду (запрос кода)
   static Future<Map<String, dynamic>> loginWithCodeRequest({
     required String identifier,
   }) {
@@ -115,7 +114,7 @@ class ApiService {
     });
   }
 
-  /// Вход по коду (с code)
+  /// Вход по коду (подтверждение)
   static Future<Map<String, dynamic>> loginWithCodeVerify({
     required String identifier,
     required String code,
@@ -127,13 +126,7 @@ class ApiService {
     });
 
     if (data['success'] == true && data['access_token'] != null) {
-      await AuthService.saveTokens(
-        data['access_token'],
-        data['refresh_token'],
-      );
-      if (data['user'] != null && data['user']['id'] != null) {
-        await AuthService.saveUserId(data['user']['id']);
-      }
+      await _saveAuthData(data);
     }
 
     return data;
@@ -143,7 +136,7 @@ class ApiService {
   // ВЕРИФИКАЦИЯ (/login/verify)
   // ============================================
 
-  static Future<Map<String, dynamic>> verifyCode({
+  static Future<Map<String, dynamic>> verifyEmail({
     required String email,
     required String code,
   }) async {
@@ -153,13 +146,7 @@ class ApiService {
     });
 
     if (data['success'] == true && data['access_token'] != null) {
-      await AuthService.saveTokens(
-        data['access_token'],
-        data['refresh_token'],
-      );
-      if (data['user'] != null && data['user']['id'] != null) {
-        await AuthService.saveUserId(data['user']['id']);
-      }
+      await _saveAuthData(data);
     }
 
     return data;
@@ -180,23 +167,199 @@ class ApiService {
   }
 
   // ============================================
+  // ВЫХОД
+  // ============================================
+
+  static Future<void> logout() async {
+    await AuthService.logout();
+  }
+
+  // ============================================
   // ПОЛЬЗОВАТЕЛЬ
   // ============================================
 
   /// Получить текущего пользователя
   static Future<User?> getMe() async {
-    // TODO: Добавить endpoint /user/me на сервере
-    // Пока возвращаем данные из AuthService
+
     final userId = await AuthService.getUserId();
+    final email = await AuthService.getEmail();
+    final username = await AuthService.getUsername();
+    final firstName = await AuthService.getFirstName();
+    final lastName = await AuthService.getLastName();
+
     if (userId == null) return null;
-    
-    // Временное решение - возвращаем базового пользователя
+
     return User(
       id: userId,
-      email: '',
-      username: 'user',
-      firstName: 'Пользователь',
-      lastName: '',
+      email: email ?? '',
+      username: username ?? '',
+      firstName: firstName ?? '',
+      lastName: lastName ?? '',
     );
+  }
+
+  /// Проверка доступности username
+  static Future<Map<String, dynamic>> checkUsername(String username) {
+    return _request('GET', '/user/check-username?username=$username', auth: false);
+  }
+
+  /// Первоначальная настройка профиля
+  static Future<Map<String, dynamic>> setupProfile({
+    required String username,
+    required String firstName,
+    String? lastName,
+  }) async {
+    final data = await _request('PUT', '/user/setup', body: {
+      'username': username,
+      'first_name': firstName,
+      'last_name': lastName,
+    });
+
+    if (data['success'] == true) {
+      await AuthService.saveUserInfo(
+        email: await AuthService.getEmail() ?? '',
+        username: username,
+        firstName: firstName,
+        lastName: lastName ?? '',
+      );
+    }
+
+    return data;
+  }
+
+  /// Обновить настройки пользователя
+  static Future<Map<String, dynamic>> updateSettings(Map<String, dynamic> settings) {
+    return _request('PUT', '/user/settings', body: settings);
+  }
+
+  /// Получить профиль другого пользователя
+  static Future<User?> getUserById(String userId) async {
+    final res = await _request('GET', '/user/$userId');
+    if (res['success'] == true && res['user'] != null) {
+      return User.fromJson(res['user']);
+    }
+    return null;
+  }
+
+  // ============================================
+  // ЧАТЫ
+  // ============================================
+
+  /// Получить список чатов
+  static Future<List<Chat>> getChats() async {
+    final res = await _request('GET', '/chats');
+    if (res['success'] == true && res['chats'] != null) {
+      return (res['chats'] as List)
+          .map((c) => Chat.fromJson(c))
+          .toList();
+    }
+    return [];
+  }
+
+  /// Создать новый чат
+  static Future<Map<String, dynamic>> createChat({
+    required String type,
+    required List<String> members,
+    String? title,
+  }) {
+    return _request('POST', '/chats/create', body: {
+      'type': type,
+      'members': members,
+      'title': title,
+    });
+  }
+
+  /// Получить информацию о чате
+  static Future<Chat?> getChatById(String chatId) async {
+    final res = await _request('GET', '/chats/$chatId');
+    if (res['success'] == true && res['chat'] != null) {
+      return Chat.fromJson(res['chat']);
+    }
+    return null;
+  }
+
+  // ============================================
+  // СООБЩЕНИЯ
+  // ============================================
+
+  /// Получить историю сообщений чата
+  static Future<List<Message>> getMessages(String chatId, {int limit = 50}) async {
+    final res = await _request('GET', '/messages/$chatId?limit=$limit');
+    if (res['success'] == true && res['messages'] != null) {
+      return (res['messages'] as List)
+          .map((m) => Message.fromJson(m))
+          .toList();
+    }
+    return [];
+  }
+
+  /// Отправить сообщение
+  static Future<Message?> sendMessage({
+    required String chatId,
+    required String content,
+    String type = 'text',
+    String? replyTo,
+  }) async {
+    final body = {
+      'chat_id': chatId,
+      'content': content,
+      'type': type,
+    };
+    if (replyTo != null) {
+      body['reply_to'] = replyTo;
+    }
+
+    final res = await _request('POST', '/messages/send', body: body);
+    if (res['success'] == true && res['message'] != null) {
+      return Message.fromJson(res['message']);
+    }
+    return null;
+  }
+
+  /// Пометить сообщение как прочитанное
+  static Future<Map<String, dynamic>> markAsRead(int messageId) {
+    return _request('PUT', '/messages/$messageId/read');
+  }
+
+  /// Редактировать сообщение
+  static Future<Map<String, dynamic>> editMessage(int messageId, String newContent) {
+    return _request('PUT', '/messages/$messageId', body: {
+      'content': newContent,
+    });
+  }
+
+  /// Удалить сообщение
+  static Future<Map<String, dynamic>> deleteMessage(int messageId, {bool forAll = false}) {
+    return _request('DELETE', '/messages/$messageId?for_all=$forAll');
+  }
+
+  /// Добавить/убрать реакцию
+  static Future<Map<String, dynamic>> toggleReaction(int messageId, String emoji) {
+    return _request('POST', '/messages/$messageId/react', body: {
+      'emoji': emoji,
+    });
+  }
+
+  // ============================================
+  // ВСПОМОГАТЕЛЬНЫЕ
+  // ============================================
+
+  static Future<void> _saveAuthData(Map<String, dynamic> data) async {
+    await AuthService.saveTokens(
+      data['access_token'],
+      data['refresh_token'],
+    );
+    if (data['user'] != null) {
+      final user = data['user'];
+      if (user['id'] != null) {
+        await AuthService.saveUserId(user['id']);
+      }
+      await AuthService.saveUserInfo(
+        email: user['email'] ?? '',
+        username: user['username'] ?? '',
+        firstName: user['first_name'] ?? '',
+        lastName: user['last_name'] ?? '',
+      );
+    }
   }
 }
