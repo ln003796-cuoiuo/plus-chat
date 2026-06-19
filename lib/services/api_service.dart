@@ -56,7 +56,7 @@ class ApiService {
       }
       return {'success': false, 'error': 'Неверный формат ответа'};
     } catch (e) {
-      return {'success': false, 'error': 'Не удалось разобрать ответ сервера'};
+      return {'success': false, 'error': 'Не удалось разобрать ответ'};
     }
   }
 
@@ -83,28 +83,31 @@ class ApiService {
   }
 
   // ============================================
-  // ВХОД (/login/login)
+  // ВХОД ПО ПАРОЛЮ (/login/login)
   // ============================================
 
-  /// Вход по паролю
-  static Future<Map<String, dynamic>> login({
-    required String email,
-    required String password,
-  }) async {
-    final data = await _request('POST', '/login/login', auth: false, body: {
-      'type': 'password',
-      'identifier': email,
-      'password': password,
-    });
+  // Вход по паролю (/login/login)
+ static Future<Map<String, dynamic>> login({
+   required String email,
+   required String password,
+ }) async {
+   final data = await _request('POST', '/login/login', auth: false, body: {
+     'type': 'password',
+     'identifier': email,
+     'password': password,
+   });
 
-    if (data['success'] == true && data['access_token'] != null) {
-      await _saveAuthData(data);
-    }
+   if (data['success'] == true && data['access_token'] != null) {
+     await _saveAuthData(data);
+   }
 
-    return data;
-  }
+   return data;  // ✅ Обязательно возвращаем data
+ }
 
-  /// Вход по коду (запрос кода)
+  // ============================================
+  // ВХОД ПО КОДУ (запрос)
+  // ============================================
+
   static Future<Map<String, dynamic>> loginWithCodeRequest({
     required String identifier,
   }) {
@@ -114,7 +117,10 @@ class ApiService {
     });
   }
 
-  /// Вход по коду (подтверждение)
+  // ============================================
+  // ВХОД ПО КОДУ (подтверждение)
+  // ============================================
+
   static Future<Map<String, dynamic>> loginWithCodeVerify({
     required String identifier,
     required String code,
@@ -133,7 +139,7 @@ class ApiService {
   }
 
   // ============================================
-  // ВЕРИФИКАЦИЯ (/login/verify)
+  // ВЕРИФИКАЦИЯ EMAIL (/login/verify)
   // ============================================
 
   static Future<Map<String, dynamic>> verifyEmail({
@@ -178,25 +184,24 @@ class ApiService {
   // ПОЛЬЗОВАТЕЛЬ
   // ============================================
 
-  /// Получить текущего пользователя
-  static Future<User?> getMe() async {
+  // Получить текущего пользователя
+ static Future<User?> getMe() async {
+   final userId = await AuthService.getUserId();
+   final email = await AuthService.getEmail();
+   final username = await AuthService.getUsername();
+   final firstName = await AuthService.getFirstName();
+   final lastName = await AuthService.getLastName();
 
-    final userId = await AuthService.getUserId();
-    final email = await AuthService.getEmail();
-    final username = await AuthService.getUsername();
-    final firstName = await AuthService.getFirstName();
-    final lastName = await AuthService.getLastName();
+   if (userId == null) return null;
 
-    if (userId == null) return null;
-
-    return User(
-      id: userId,
-      email: email ?? '',
-      username: username ?? '',
-      firstName: firstName ?? '',
-      lastName: lastName ?? '',
-    );
-  }
+   return User(
+     id: userId,
+     email: email,
+     username: username,
+     firstName: firstName ?? 'Пользователь',  // ✅ Required параметр
+     lastName: lastName,
+   );
+ }
 
   /// Проверка доступности username
   static Future<Map<String, dynamic>> checkUsername(String username) {
@@ -250,7 +255,7 @@ class ApiService {
     final res = await _request('GET', '/chats');
     if (res['success'] == true && res['chats'] != null) {
       return (res['chats'] as List)
-          .map((c) => Chat.fromJson(c))
+          .map((c) => Chat.fromJson(c as Map<String, dynamic>))
           .toList();
     }
     return [];
@@ -287,7 +292,7 @@ class ApiService {
     final res = await _request('GET', '/messages/$chatId?limit=$limit');
     if (res['success'] == true && res['messages'] != null) {
       return (res['messages'] as List)
-          .map((m) => Message.fromJson(m))
+          .map((m) => Message.fromJson(m as Map<String, dynamic>))
           .toList();
     }
     return [];
@@ -300,7 +305,7 @@ class ApiService {
     String type = 'text',
     String? replyTo,
   }) async {
-    final body = {
+    final body = <String, dynamic>{
       'chat_id': chatId,
       'content': content,
       'type': type,
@@ -316,24 +321,24 @@ class ApiService {
     return null;
   }
 
-  /// Пометить сообщение как прочитанное
+  /// Пометить сообщение как прочитанное (id - int, как в модели Message)
   static Future<Map<String, dynamic>> markAsRead(int messageId) {
     return _request('PUT', '/messages/$messageId/read');
   }
 
-  /// Редактировать сообщение
+  /// Редактировать сообщение (id - int)
   static Future<Map<String, dynamic>> editMessage(int messageId, String newContent) {
     return _request('PUT', '/messages/$messageId', body: {
       'content': newContent,
     });
   }
 
-  /// Удалить сообщение
+  /// Удалить сообщение (id - int)
   static Future<Map<String, dynamic>> deleteMessage(int messageId, {bool forAll = false}) {
     return _request('DELETE', '/messages/$messageId?for_all=$forAll');
   }
 
-  /// Добавить/убрать реакцию
+  /// Добавить/убрать реакцию (id - int)
   static Future<Map<String, dynamic>> toggleReaction(int messageId, String emoji) {
     return _request('POST', '/messages/$messageId/react', body: {
       'emoji': emoji,
@@ -341,24 +346,24 @@ class ApiService {
   }
 
   // ============================================
-  // ВСПОМОГАТЕЛЬНЫЕ
+  // ВСПОМОГАТЕЛЬНЫЙ МЕТОД
   // ============================================
 
   static Future<void> _saveAuthData(Map<String, dynamic> data) async {
     await AuthService.saveTokens(
-      data['access_token'],
-      data['refresh_token'],
+      data['access_token']?.toString() ?? '',
+      data['refresh_token']?.toString() ?? '',
     );
     if (data['user'] != null) {
       final user = data['user'];
       if (user['id'] != null) {
-        await AuthService.saveUserId(user['id']);
+        await AuthService.saveUserId(user['id'].toString());
       }
       await AuthService.saveUserInfo(
-        email: user['email'] ?? '',
-        username: user['username'] ?? '',
-        firstName: user['first_name'] ?? '',
-        lastName: user['last_name'] ?? '',
+        email: user['email']?.toString() ?? '',
+        username: user['username']?.toString() ?? '',
+        firstName: user['first_name']?.toString() ?? '',
+        lastName: user['last_name']?.toString() ?? '',
       );
     }
   }

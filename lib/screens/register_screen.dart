@@ -39,8 +39,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final response = await ApiService.register(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        middleName: _middleNameController.text.trim().isEmpty 
-            ? null 
+        middleName: _middleNameController.text.trim().isEmpty
+            ? null
             : _middleNameController.text.trim(),
         username: _usernameController.text.trim(),
         email: _emailController.text.trim().toLowerCase(),
