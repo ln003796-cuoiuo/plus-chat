@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
-import 'screens/chats_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/verify_screen.dart';
+import 'screens/home_screen.dart';
+import 'services/auth_service.dart';
 
 void main() {
   runApp(const PlusChatApp());
@@ -13,60 +15,61 @@ class PlusChatApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Плюс Чат',  // ← ИЗМЕНЕНО
+      title: 'Плюс Чат',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF075E54),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF075E54), // Зелёный как в WhatsApp
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
-        brightness: Brightness.light,
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+        ),
       ),
-      darkTheme: ThemeData(
-        colorSchemeSeed: const Color(0xFF075E54),
-        useMaterial3: true,
-        brightness: Brightness.dark,
-      ),
-      home: const AuthGate(),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const HomeScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/verify') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (context) => VerifyScreen(
+              email: args['email'] as String,
+              type: args['type'] as String,
+            ),
+          );
+        }
+        return null;
+      },
+      home: const AuthWrapper(),
     );
   }
 }
 
-// ... остальной код без изменений ...
-
-// Автоматически показывает нужный экран в зависимости от авторизации
-class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
-
-  @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
-  bool _loading = true;
-  bool _loggedIn = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAuth();
-  }
-
-  Future<void> _checkAuth() async {
-    final token = await AuthService.getToken();
-    if (mounted) {
-      setState(() {
-        _loggedIn = token != null;
-        _loading = false;
-      });
-    }
-  }
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    return _loggedIn ? const ChatsScreen() : const LoginScreen();
+    return FutureBuilder<bool>(
+      future: AuthService.isLoggedIn(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.data == true) {
+          return const HomeScreen();
+        }
+
+        return const LoginScreen();
+      },
+    );
   }
 }
