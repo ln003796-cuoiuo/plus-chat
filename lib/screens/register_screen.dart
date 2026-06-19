@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import 'verify_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,116 +9,189 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _loading = false;
+  final _formKey = GlobalKey<FormState>();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _middleNameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
-  Future<void> _register() async {
-    if (_nameCtrl.text.isEmpty ||
-        _emailCtrl.text.isEmpty ||
-        _passCtrl.text.isEmpty) {
-      _showError('Заполните все поля');
-      return;
-    }
-    if (_passCtrl.text.length < 8) {
-      _showError('Пароль должен быть минимум 8 символов');
-      return;
-    }
+  bool _isLoading = false;
 
-    setState(() => _loading = true);
-    try {
-      final res = await ApiService.register(
-       firstName: _firstNameController.text.trim(),
-       lastName: _lastNameController.text.trim(),    // ← ОБЯЗАТЕЛЬНО!
-       middleName: _middleNameController.text.trim().isEmpty 
-       ? null 
-       : _middleNameController.text.trim(),
-       username: _usernameController.text.trim(),
-       email: _emailController.text.trim().toLowerCase(),
-       password: _passwordController.text,
-     );
-
-      if (res['success'] == true) {
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => VerifyScreen(email: _emailCtrl.text.trim()),
-          ),
-        );
-      } else {
-        _showError(res['error'] ?? 'Ошибка регистрации');
-      }
-    } catch (e) {
-      _showError('Ошибка сети: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _middleNameController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
-    );
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await ApiService.register(
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        middleName: _middleNameController.text.trim().isEmpty 
+            ? null 
+            : _middleNameController.text.trim(),
+        username: _usernameController.text.trim(),
+        email: _emailController.text.trim().toLowerCase(),
+        password: _passwordController.text,
+      );
+
+      if (response['success'] == true) {
+        if (mounted) {
+          Navigator.pushNamed(
+            context,
+            '/verify',
+            arguments: {
+              'email': _emailController.text.trim().toLowerCase(),
+              'type': 'registration',
+            },
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['error'] ?? 'Ошибка регистрации'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка сети: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+      appBar: AppBar(
+        title: const Text('Регистрация'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Создать аккаунт',
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              Text('Заполните данные для регистрации',
-                  style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _nameCtrl,
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _firstNameController,
                 decoration: const InputDecoration(
-                  labelText: 'Ваше имя',
-                  prefixIcon: Icon(Icons.person_outline),
+                  labelText: 'Имя *',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().length < 2) {
+                    return 'Минимум 2 символа';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _lastNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Фамилия *',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().length < 2) {
+                    return 'Минимум 2 символа';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _middleNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Отчество (необязательно)',
                   border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _emailCtrl,
+              TextFormField(
+                controller: _usernameController,
+                decoration: const InputDecoration(
+                  labelText: 'Username *',
+                  prefixText: '@',
+                  border: OutlineInputBorder(),
+                  helperText: '3-30 символов: буквы, цифры, _',
+                ),
+                validator: (value) {
+                  if (value == null || !RegExp(r'^[a-zA-Z0-9_]{3,30}$').hasMatch(value)) {
+                    return 'Неверный формат';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email *',
+                  border: OutlineInputBorder(),
+                ),
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
-                ),
+                validator: (value) {
+                  if (value == null || !value.contains('@')) {
+                    return 'Неверный email';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _passCtrl,
-                obscureText: true,
+              TextFormField(
+                controller: _passwordController,
                 decoration: const InputDecoration(
-                  labelText: 'Пароль',
-                  prefixIcon: Icon(Icons.lock_outline),
+                  labelText: 'Пароль *',
                   border: OutlineInputBorder(),
+                  helperText: 'Минимум 8 символов',
                 ),
+                obscureText: true,
+                validator: (value) {
+                  if (value == null || value.length < 8) {
+                    return 'Минимум 8 символов';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _loading ? null : _register,
-                style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Зарегистрироваться',
-                        style: TextStyle(fontSize: 16)),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _register,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator()
+                    : const Text('Зарегистрироваться', style: TextStyle(fontSize: 16)),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/login'),
+                child: const Text('Уже есть аккаунт? Войти'),
               ),
             ],
           ),

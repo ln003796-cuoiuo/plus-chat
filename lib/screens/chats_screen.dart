@@ -49,7 +49,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
 
   Future<void> _logout() async {
     await ApiService.logout();
-    await AuthService.clear();
+    await AuthService.logout();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
