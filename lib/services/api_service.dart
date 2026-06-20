@@ -147,21 +147,24 @@ class ApiService {
   // ============================================
 
   /// Получить текущего пользователя
-  static Future<User?> getMe() async {
-    final userId = await AuthService.getUserId();
-    final email = await AuthService.getEmail();
-    final username = await AuthService.getUsername();
-    final firstName = await AuthService.getFirstName();
-    final lastName = await AuthService.getLastName();
-    if (userId == null) return null;
-    return User(
-      id: userId,
-      email: email,
-      username: username,
-      firstName: firstName ?? 'Пользователь',
-      lastName: lastName,
-    );
-  }
+  /// Получить текущего пользователя
+ static Future<User?> getMe() async {
+   final userId = await AuthService.getUserId();
+   final email = await AuthService.getEmail();
+   final username = await AuthService.getUsername();
+   final firstName = await AuthService.getFirstName();
+   final lastName = await AuthService.getLastName();
+   
+   if (userId == null) return null;
+   
+   return User(
+     id: userId,
+     email: email,
+     username: username,
+     firstName: firstName ?? 'Пользователь',
+     lastName: lastName,
+   );
+ }
 
   /// Проверка доступности username
   static Future<Map<String, dynamic>> checkUsername(String username) {
