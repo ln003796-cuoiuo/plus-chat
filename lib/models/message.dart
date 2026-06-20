@@ -1,4 +1,5 @@
-enum MessageType {
+import 'user.dart';
+ enum MessageType {
   text,
   voice,
   video,

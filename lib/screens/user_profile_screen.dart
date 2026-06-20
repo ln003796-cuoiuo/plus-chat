@@ -23,7 +23,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _loadData() async {
     try {
-      final user = await ApiService.getUserProfile(userId: widget.userId);
+      final user = await ApiService.getUserProfile(widget.userId);
       final status = await ApiService.getFriendStatus(widget.userId);
       if (mounted) {
         setState(() {
@@ -70,8 +70,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 60,
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
+                            backgroundColor: Theme.of(context).colorScheme.primary,
                             backgroundImage: _user!.avatarUrl != null
                                 ? NetworkImage(_user!.avatarUrl!)
                                 : null,
@@ -96,8 +95,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.green,
                                   shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: Colors.white, width: 3),
+                                  border: Border.all(color: Colors.white, width: 3),
                                 ),
                               ),
                             ),
@@ -125,8 +123,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         children: [
                           if (_user!.isPremium)
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
@@ -134,16 +131,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text('⭐ Premium',
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 12)),
+                                  style: TextStyle(color: Colors.white, fontSize: 12)),
                             ),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _user!.isOnline
-                                  ? Colors.green
-                                  : Colors.grey,
+                              color: _user!.isOnline ? Colors.green : Colors.grey,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -152,8 +145,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   : (_user!.lastSeen != null
                                       ? 'Был(а) ${_user!.lastSeen}'
                                       : 'Не в сети'),
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 12),
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
                             ),
                           ),
                         ],
@@ -174,8 +166,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.location_on,
-                                size: 16, color: Colors.grey),
+                            const Icon(Icons.location_on, size: 16, color: Colors.grey),
                             const SizedBox(width: 4),
                             Text(
                               [_user!.city, _user!.country]
@@ -190,14 +181,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
                           children: [
-                            Expanded(
-                              child: _statCard('Подарки',
-                                  '${_user!.giftsReceivedCount}'),
-                            ),
+                            Expanded(child: _statCard('Подарки', '${_user!.giftsReceivedCount}')),
                             const SizedBox(width: 12),
-                            Expanded(
-                              child: _statCard('Монеты', '${_user!.plusCoins}'),
-                            ),
+                            Expanded(child: _statCard('Монеты', '${_user!.plusCoins}')),
                           ],
                         ),
                       ),
@@ -220,12 +206,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
       child: Column(
         children: [
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(label,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -239,8 +222,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           if (_friendshipStatus == 'none')
             FilledButton.icon(
               onPressed: () async {
-                final res =
-                    await ApiService.sendFriendRequest(widget.userId);
+                final res = await ApiService.sendFriendRequest(widget.userId);
                 if (res['success'] == true && mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Запрос отправлен')),
@@ -313,12 +295,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         builder: (ctx) => AlertDialog(
                           title: const Text('Удалить из друзей?'),
                           actions: [
-                            TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Отмена')),
-                            TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Удалить')),
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Удалить')),
                           ],
                         ),
                       );
@@ -344,12 +322,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   title: const Text('Заблокировать?'),
                   content: const Text('Пользователь не сможет писать вам'),
                   actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Отмена')),
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Заблокировать')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Заблокировать')),
                   ],
                 ),
               );
@@ -359,8 +333,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               }
             },
             icon: const Icon(Icons.block, color: Colors.red),
-            label: const Text('Заблокировать',
-                style: TextStyle(color: Colors.red)),
+            label: const Text('Заблокировать', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

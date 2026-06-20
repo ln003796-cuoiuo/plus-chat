@@ -79,58 +79,56 @@ class ApiService {
   // АВТОРИЗАЦИЯ
   // ============================================
 
-  /// Вход по паролю или коду
-  static Future<Map<String, dynamic>> login({
-    required String identifier,
-    String? password,
-    String? code,
-    String type = 'password',
-  }) async {
-    final body = <String, dynamic>{
-      'identifier': identifier,
-      'type': type,
-    };
-    if (password != null) body['password'] = password;
-    if (code != null) body['code'] = code;
-
-    final data = await _request('POST', '/login/login', body: body, auth: false);
-    if (data['success'] == true && data['access_token'] != null) {
-      await _saveAuthData(data);
-    }
-    return data;
-  }
-
   /// Регистрация
   static Future<Map<String, dynamic>> register({
     required String firstName,
     required String lastName,
+    String? middleName,
     required String username,
     required String email,
     required String password,
   }) {
-    return _request('POST', '/register/register', body: {
+    return _request('POST', '/register/register', auth: false, body: {
       'first_name': firstName,
       'last_name': lastName,
+      'middle_name': middleName ?? '',
       'username': username,
       'email': email,
       'password': password,
-    }, auth: false);
+    });
+  }
+
+  /// Вход по паролю
+  static Future<Map<String, dynamic>> login({
+    required String identifier,
+    required String password,
+  }) {
+    return _request('POST', '/login/login', auth: false, body: {
+      'type': 'password',
+      'identifier': identifier,
+      'password': password,
+    });
+  }
+
+  /// Вход по коду (запрос кода)
+  static Future<Map<String, dynamic>> loginWithCodeRequest({
+    required String identifier,
+  }) {
+    return _request('POST', '/login/login', auth: false, body: {
+      'type': 'code',
+      'identifier': identifier,
+    });
   }
 
   /// Подтверждение email
   static Future<Map<String, dynamic>> verifyEmail({
     required String email,
     required String code,
-  }) async {
-    final data = await _request('POST', '/login/verify', body: {
+  }) {
+    return _request('POST', '/login/verify', auth: false, body: {
       'email': email,
       'code': code,
-    }, auth: false);
-
-    if (data['success'] == true && data['access_token'] != null) {
-      await _saveAuthData(data);
-    }
-    return data;
+    });
   }
 
   /// Повторная отправка кода
@@ -138,23 +136,18 @@ class ApiService {
     required String email,
     required String type,
   }) {
-    return _request('POST', '/login/resend-code', body: {
+    return _request('POST', '/login/resend-code', auth: false, body: {
       'email': email,
       'type': type,
-    }, auth: false);
+    });
   }
 
   // ============================================
-  // ПРОФИЛЬ
+  // ПОЛЬЗОВАТЕЛЬ
   // ============================================
 
   /// Получить текущего пользователя
   static Future<User?> getMe() async {
-    final data = await _request('GET', '/user/me');
-    if (data['success'] == true && data['user'] != null) {
-      return User.fromJson(data['user']);
-    }
-    // Fallback на локальные данные
     final userId = await AuthService.getUserId();
     final email = await AuthService.getEmail();
     final username = await AuthService.getUsername();
