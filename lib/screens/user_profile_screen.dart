@@ -14,7 +14,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   User? _user;
   bool _loading = true;
   String _friendshipStatus = 'none';
-  bool _isFriend = false;
 
   @override
   void initState() {
@@ -30,51 +29,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         setState(() {
           _user = user;
           _friendshipStatus = status['friendship_status'] ?? 'none';
-          _isFriend = _friendshipStatus == 'friends';
           _loading = false;
         });
       }
     } catch (e) {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _sendFriendRequest() async {
-    final res = await ApiService.sendFriendRequest(widget.userId);
-    if (res['success'] == true) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Запрос отправлен')),
-        );
-        setState(() => _friendshipStatus = 'i_sent_request');
-      }
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(res['error'] ?? 'Ошибка')),
-      );
-    }
-  }
-
-  Future<void> _removeFriend() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Удалить из друзей?'),
-        content: const Text('Пользователь останется в контактах'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Удалить')),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await ApiService.removeFriend(widget.userId);
-      if (mounted) {
-        setState(() {
-          _friendshipStatus = 'none';
-          _isFriend = false;
-        });
-      }
     }
   }
 
@@ -95,23 +54,54 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               : SingleChildScrollView(
                   child: Column(
                     children: [
-                      const SizedBox(height: 24),
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        backgroundImage: _user!.avatarUrl != null
-                            ? NetworkImage(_user!.avatarUrl!)
-                            : null,
-                        child: _user!.avatarUrl == null
-                            ? Text(
-                                _user!.initial,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.bold,
+                      if (_user!.bannerUrl != null)
+                        Container(
+                          height: 120,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              image: NetworkImage(_user!.bannerUrl!),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          CircleAvatar(
+                            radius: 60,
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            backgroundImage: _user!.avatarUrl != null
+                                ? NetworkImage(_user!.avatarUrl!)
+                                : null,
+                            child: _user!.avatarUrl == null
+                                ? Text(
+                                    _user!.initials,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          if (_user!.isOnline)
+                            Positioned(
+                              bottom: 4,
+                              right: 4,
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                  border:
+                                      Border.all(color: Colors.white, width: 3),
                                 ),
-                              )
-                            : null,
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -123,34 +113,51 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '@${_user!.username}',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        '@${_user!.username ?? 'username'}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      if (_user!.isOnline)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(12),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          if (_user!.isPremium)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text('⭐ Premium',
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 12)),
+                            ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _user!.isOnline
+                                  ? Colors.green
+                                  : Colors.grey,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _user!.isOnline
+                                  ? 'В сети'
+                                  : (_user!.lastSeen != null
+                                      ? 'Был(а) ${_user!.lastSeen}'
+                                      : 'Не в сети'),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12),
+                            ),
                           ),
-                          child: const Text('В сети', style: TextStyle(color: Colors.white, fontSize: 12)),
-                        )
-                      else if (_user!.lastSeen != null)
-                        Text(
-                          'Был(а) ${_user!.lastSeen}',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      if (_user!.isPremium)
-                        Container(
-                          margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.amber,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text('⭐ Premium', style: TextStyle(color: Colors.white, fontSize: 12)),
-                        ),
+                        ],
+                      ),
                       const SizedBox(height: 24),
                       if (_user!.bio != null && _user!.bio!.isNotEmpty)
                         Container(
@@ -163,13 +170,34 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           child: Text(_user!.bio!),
                         ),
                       const SizedBox(height: 24),
+                      if (_user!.city != null || _user!.country != null)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.location_on,
+                                size: 16, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(
+                              [_user!.city, _user!.country]
+                                  .where((e) => e != null && e.isNotEmpty)
+                                  .join(', '),
+                              style: TextStyle(color: Colors.grey[700]),
+                            ),
+                          ],
+                        ),
+                      const SizedBox(height: 24),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
                           children: [
-                            Expanded(child: _statCard('Подписчики', '${_user!.followersCount}')),
+                            Expanded(
+                              child: _statCard('Подарки',
+                                  '${_user!.giftsReceivedCount}'),
+                            ),
                             const SizedBox(width: 12),
-                            Expanded(child: _statCard('Подписки', '${_user!.followingCount}')),
+                            Expanded(
+                              child: _statCard('Монеты', '${_user!.plusCoins}'),
+                            ),
                           ],
                         ),
                       ),
@@ -192,9 +220,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
       child: Column(
         children: [
-          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          Text(label,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -207,7 +238,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         children: [
           if (_friendshipStatus == 'none')
             FilledButton.icon(
-              onPressed: _sendFriendRequest,
+              onPressed: () async {
+                final res =
+                    await ApiService.sendFriendRequest(widget.userId);
+                if (res['success'] == true && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Запрос отправлен')),
+                  );
+                  setState(() => _friendshipStatus = 'i_sent_request');
+                }
+              },
               icon: const Icon(Icons.person_add),
               label: const Text('Добавить в друзья'),
             )
@@ -215,7 +255,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             OutlinedButton.icon(
               onPressed: () async {
                 await ApiService.cancelFriendRequest(widget.userId);
-                if (mounted) setState(() => _friendshipStatus = 'none');
+                if (mounted) {
+                  setState(() => _friendshipStatus = 'none');
+                }
               },
               icon: const Icon(Icons.cancel),
               label: const Text('Отменить запрос'),
@@ -227,7 +269,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   child: FilledButton.icon(
                     onPressed: () async {
                       await ApiService.acceptFriendRequest(widget.userId);
-                      if (mounted) setState(() => _friendshipStatus = 'friends');
+                      if (mounted) {
+                        setState(() => _friendshipStatus = 'friends');
+                      }
                     },
                     icon: const Icon(Icons.check),
                     label: const Text('Принять'),
@@ -238,7 +282,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () async {
                       await ApiService.rejectFriendRequest(widget.userId);
-                      if (mounted) setState(() => _friendshipStatus = 'none');
+                      if (mounted) {
+                        setState(() => _friendshipStatus = 'none');
+                      }
                     },
                     icon: const Icon(Icons.close),
                     label: const Text('Отклонить'),
@@ -246,7 +292,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               ],
             )
-          else if (_isFriend)
+          else if (_friendshipStatus == 'friends')
             Row(
               children: [
                 Expanded(
@@ -261,7 +307,28 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _removeFriend,
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Удалить из друзей?'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Отмена')),
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Удалить')),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await ApiService.removeFriend(widget.userId);
+                        if (mounted) {
+                          setState(() => _friendshipStatus = 'none');
+                        }
+                      }
+                    },
                     icon: const Icon(Icons.person_remove),
                     label: const Text('Удалить'),
                   ),
@@ -277,8 +344,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   title: const Text('Заблокировать?'),
                   content: const Text('Пользователь не сможет писать вам'),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Заблокировать')),
+                    TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Отмена')),
+                    TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Заблокировать')),
                   ],
                 ),
               );
@@ -288,7 +359,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               }
             },
             icon: const Icon(Icons.block, color: Colors.red),
-            label: const Text('Заблокировать', style: TextStyle(color: Colors.red)),
+            label: const Text('Заблокировать',
+                style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

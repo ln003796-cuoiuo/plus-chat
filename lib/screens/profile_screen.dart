@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart';
 import '../models/user.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -30,9 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -54,28 +51,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     children: [
                       const SizedBox(height: 24),
+                      // Баннер
+                      if (_user!.bannerUrl != null)
+                        Container(
+                          height: 120,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              image: NetworkImage(_user!.bannerUrl!),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
                       // Аватар
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        backgroundImage: _user!.avatarUrl != null
-                            ? NetworkImage(_user!.avatarUrl!)
-                            : null,
-                        child: _user!.avatarUrl == null
-                            ? Text(
-                                _user!.firstName[0].toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.bold,
+                      Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          CircleAvatar(
+                            radius: 60,
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            backgroundImage: _user!.avatarUrl != null
+                                ? NetworkImage(_user!.avatarUrl!)
+                                : null,
+                            child: _user!.avatarUrl == null
+                                ? Text(
+                                    _user!.initials,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          if (_user!.isOnline)
+                            Positioned(
+                              bottom: 4,
+                              right: 4,
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                  border:
+                                      Border.all(color: Colors.white, width: 3),
                                 ),
-                              )
-                            : null,
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       // Имя
                       Text(
-                        '${_user!.firstName} ${_user!.lastName}',
+                        _user!.displayName,
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -83,33 +113,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '@${_user!.username}',
+                        '@${_user!.username ?? 'username'}',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey[600],
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'В сети',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                      // Бейджи
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          if (_user!.isPremium)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.star,
+                                      color: Colors.white, size: 14),
+                                  SizedBox(width: 4),
+                                  Text('Premium',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _user!.isOnline
+                                  ? Colors.green
+                                  : Colors.grey,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _user!.isOnline ? 'В сети' : 'Не в сети',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (_user!.customStatusEmoji != null ||
+                              _user!.customStatusText != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[100],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_user!.customStatusEmoji ?? ''} ${_user!.customStatusText ?? ''}'.trim(),
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 24),
-                      // О себе
+                      // Bio
                       if (_user!.bio != null && _user!.bio!.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -135,44 +211,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       const SizedBox(height: 24),
+                      // Локация
+                      if (_user!.city != null || _user!.country != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.location_on,
+                                  size: 16, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Text(
+                                [
+                                  _user!.city,
+                                  _user!.country
+                                ].where((e) => e != null && e.isNotEmpty).join(', '),
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 24),
                       // Статистика
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
                           children: [
                             Expanded(
-                              child: _buildStatCard('Друзья', '0'),
+                              child: _statCard('Подарки получено',
+                                  '${_user!.giftsReceivedCount}'),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _buildStatCard('Подписчики', '0'),
+                              child: _statCard(
+                                  'Plus Coins', '${_user!.plusCoins}'),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _buildStatCard('Контакты', '0'),
+                              child: _statCard('Отправлено',
+                                  '${_user!.giftsSentCount}'),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 24),
                       const Divider(),
-                      // Подарки и стикеры
+                      // Соцсети
+                      if (_hasSocialLinks()) ...[
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Социальные сети',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_user!.website != null)
+                          _socialTile(Icons.language, 'Сайт', _user!.website!),
+                        if (_user!.instagram != null)
+                          _socialTile(
+                              Icons.camera_alt, 'Instagram', _user!.instagram!),
+                        if (_user!.telegram != null)
+                          _socialTile(Icons.send, 'Telegram', _user!.telegram!),
+                        if (_user!.twitter != null)
+                          _socialTile(Icons.flutter_dash, 'Twitter', _user!.twitter!),
+                        if (_user!.github != null)
+                          _socialTile(Icons.code, 'GitHub', _user!.github!),
+                        if (_user!.linkedin != null)
+                          _socialTile(Icons.work, 'LinkedIn', _user!.linkedin!),
+                        const Divider(),
+                      ],
+                      // Действия
+                      ListTile(
+                        leading: const Icon(Icons.edit),
+                        title: const Text('Редактировать профиль'),
+                        onTap: () {
+                          // TODO: Экран редактирования
+                        },
+                      ),
                       ListTile(
                         leading: const Icon(Icons.card_giftcard_outlined),
-                        title: const Text('Подарки'),
-                        subtitle: const Text('12 получено'),
-                        trailing: const Icon(Icons.chevron_right),
+                        title: const Text('Мои подарки'),
                         onTap: () {
-                          // TODO: Экран подарков
+                          Navigator.pushNamed(context, '/gifts');
                         },
                       ),
                       ListTile(
                         leading: const Icon(Icons.emoji_emotions_outlined),
                         title: const Text('Стикеры'),
-                        subtitle: const Text('5 паков'),
-                        trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: Экран стикеров
+                          Navigator.pushNamed(context, '/stickers');
                         },
                       ),
                       const Divider(),
@@ -182,7 +316,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value) {
+  bool _hasSocialLinks() {
+    return (_user!.website != null && _user!.website!.isNotEmpty) ||
+        (_user!.instagram != null && _user!.instagram!.isNotEmpty) ||
+        (_user!.telegram != null && _user!.telegram!.isNotEmpty) ||
+        (_user!.twitter != null && _user!.twitter!.isNotEmpty) ||
+        (_user!.github != null && _user!.github!.isNotEmpty) ||
+        (_user!.linkedin != null && _user!.linkedin!.isNotEmpty);
+  }
+
+  Widget _socialTile(IconData icon, String label, String value) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      subtitle: Text(value),
+      trailing: const Icon(Icons.open_in_new, size: 16),
+      onTap: () {
+        // TODO: Открыть ссылку
+      },
+    );
+  }
+
+  Widget _statCard(String label, String value) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -202,9 +357,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: Colors.grey[600],
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

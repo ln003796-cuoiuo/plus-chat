@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
+import '../widgets/user_tile.dart';
+import 'user_profile_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -13,7 +15,8 @@ class _FriendsScreenState extends State<FriendsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<User> _friends = [];
-  List<User> _requests = [];
+  List<User> _incomingRequests = [];
+  List<User> _outgoingRequests = [];
   List<User> _contacts = [];
   bool _loading = true;
 
@@ -27,23 +30,28 @@ class _FriendsScreenState extends State<FriendsScreen>
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      // TODO: Реализовать API для друзей
-      // final friends = await ApiService.getFriends();
-      // final requests = await ApiService.getFriendRequests();
-      // final contacts = await ApiService.getContacts();
-      setState(() {
-        _friends = [];
-        _requests = [];
-        _contacts = [];
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() => _loading = false);
+      final friends = await ApiService.getFriends();
+      final requests = await ApiService.getFriendRequests();
+      final contacts = await ApiService.getContacts();
+
+      final incoming = (requests['incoming'] as List? ?? [])
+          .map((r) => User.fromJson(r as Map<String, dynamic>))
+          .toList();
+      final outgoing = (requests['outgoing'] as List? ?? [])
+          .map((r) => User.fromJson(r as Map<String, dynamic>))
+          .toList();
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
-        );
+        setState(() {
+          _friends = friends;
+          _incomingRequests = incoming;
+          _outgoingRequests = outgoing;
+          _contacts = contacts;
+          _loading = false;
+        });
       }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -64,10 +72,10 @@ class _FriendsScreenState extends State<FriendsScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Друзья'),
-            Tab(text: 'Запросы'),
-            Tab(text: 'Контакты'),
+          tabs: [
+            Tab(text: 'Друзья (${_friends.length})'),
+            Tab(text: 'Запросы (${_incomingRequests.length})'),
+            Tab(text: 'Контакты (${_contacts.length})'),
           ],
         ),
       ),
@@ -92,9 +100,13 @@ class _FriendsScreenState extends State<FriendsScreen>
           children: [
             Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            Text(
-              'У вас пока нет друзей',
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+            Text('У вас пока нет друзей',
+                style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => Navigator.pushNamed(context, '/search'),
+              icon: const Icon(Icons.person_add),
+              label: const Text('Найти друзей'),
             ),
           ],
         ),
@@ -105,22 +117,36 @@ class _FriendsScreenState extends State<FriendsScreen>
       itemCount: _friends.length,
       itemBuilder: (context, index) {
         final friend = _friends[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: friend.avatarUrl != null
-                ? NetworkImage(friend.avatarUrl!)
-                : null,
-            child: friend.avatarUrl == null
-                ? Text(friend.firstName[0].toUpperCase())
-                : null,
-          ),
-          title: Text('${friend.firstName} ${friend.lastName}'),
-          subtitle: Text('@${friend.username}'),
-          trailing: FilledButton.tonal(
-            onPressed: () {
-              // TODO: Открыть чат
+        return UserTile(
+          user: friend,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => UserProfileScreen(userId: friend.id),
+              ),
+            );
+          },
+          trailing: PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'remove') {
+                await ApiService.removeFriend(friend.id);
+                _loadData();
+              }
             },
-            child: const Text('Написать'),
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(
+                value: 'remove',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_remove, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Удалить из друзей',
+                        style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -128,56 +154,97 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 
   Widget _buildRequestsList() {
-    if (_requests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.mail_outline, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Нет запросов в друзья',
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+    return ListView(
+      children: [
+        if (_incomingRequests.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Входящие запросы',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700])),
+          ),
+          ..._incomingRequests.map((user) => ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: user.avatarUrl != null
+                      ? NetworkImage(user.avatarUrl!)
+                      : null,
+                  child: user.avatarUrl == null
+                      ? Text(user.initials)
+                      : null,
+                ),
+                title: Text(user.displayName),
+                subtitle: Text('@${user.username ?? 'username'}'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.check, color: Colors.green),
+                      onPressed: () async {
+                        await ApiService.acceptFriendRequest(user.id);
+                        _loadData();
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () async {
+                        await ApiService.rejectFriendRequest(user.id);
+                        _loadData();
+                      },
+                    ),
+                  ],
+                ),
+              )),
+        ],
+        if (_outgoingRequests.isNotEmpty) ...[
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Исходящие запросы',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700])),
+          ),
+          ..._outgoingRequests.map((user) => ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: user.avatarUrl != null
+                      ? NetworkImage(user.avatarUrl!)
+                      : null,
+                  child: user.avatarUrl == null
+                      ? Text(user.initials)
+                      : null,
+                ),
+                title: Text(user.displayName),
+                subtitle: Text('@${user.username ?? 'username'}'),
+                trailing: TextButton(
+                  onPressed: () async {
+                    await ApiService.cancelFriendRequest(user.id);
+                    _loadData();
+                  },
+                  child: const Text('Отменить'),
+                ),
+              )),
+        ],
+        if (_incomingRequests.isEmpty && _outgoingRequests.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.mail_outline,
+                      size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text('Нет запросов в друзья',
+                      style:
+                          TextStyle(color: Colors.grey[600], fontSize: 16)),
+                ],
+              ),
             ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: _requests.length,
-      itemBuilder: (context, index) {
-        final request = _requests[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: request.avatarUrl != null
-                ? NetworkImage(request.avatarUrl!)
-                : null,
-            child: request.avatarUrl == null
-                ? Text(request.firstName[0].toUpperCase())
-                : null,
           ),
-          title: Text('${request.firstName} ${request.lastName}'),
-          subtitle: Text('@${request.username}'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.check, color: Colors.green),
-                onPressed: () {
-                  // TODO: Принять запрос
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.red),
-                onPressed: () {
-                  // TODO: Отклонить запрос
-                },
-              ),
-            ],
-          ),
-        );
-      },
+      ],
     );
   }
 
@@ -187,12 +254,11 @@ class _FriendsScreenState extends State<FriendsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.contacts_outlined, size: 64, color: Colors.grey[400]),
+            Icon(Icons.contacts_outlined,
+                size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            Text(
-              'Список контактов пуст',
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
-            ),
+            Text('Список контактов пуст',
+                style: TextStyle(color: Colors.grey[600], fontSize: 16)),
           ],
         ),
       );
@@ -202,23 +268,16 @@ class _FriendsScreenState extends State<FriendsScreen>
       itemCount: _contacts.length,
       itemBuilder: (context, index) {
         final contact = _contacts[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: contact.avatarUrl != null
-                ? NetworkImage(contact.avatarUrl!)
-                : null,
-            child: contact.avatarUrl == null
-                ? Text(contact.firstName[0].toUpperCase())
-                : null,
-          ),
-          title: Text('${contact.firstName} ${contact.lastName}'),
-          subtitle: Text('@${contact.username}'),
-          trailing: FilledButton.tonal(
-            onPressed: () {
-              // TODO: Открыть чат
-            },
-            child: const Text('Написать'),
-          ),
+        return UserTile(
+          user: contact,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => UserProfileScreen(userId: contact.id),
+              ),
+            );
+          },
         );
       },
     );

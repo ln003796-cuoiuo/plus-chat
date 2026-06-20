@@ -118,24 +118,60 @@ class ApiService {
   // ПРОФИЛЬ
   // ============================================
 
-  static Future<User?> getMe() async {
-    final res = await _request('GET', '/user/me');
-    if (res['success'] == true && res['user'] != null) {
-      return User.fromJson(res['user'] as Map<String, dynamic>);
-    }
-    return null;
+  /// Получить текущего пользователя
+static Future<User?> getMe() async {
+  final res = await _request('GET', '/user/me');
+  if (res['success'] == true && res['user'] != null) {
+    return User.fromJson(res['user'] as Map<String, dynamic>);
   }
+  // Fallback на локальные данные
+  final userId = await AuthService.getUserId();
+  if (userId == null) return null;
+  return User(
+    id: userId,
+    email: await AuthService.getEmail(),
+    username: await AuthService.getUsername(),
+    firstName: await AuthService.getFirstName() ?? 'Пользователь',
+    lastName: await AuthService.getLastName(),
+  );
+}
 
-  static Future<User?> getUserProfile({String? userId, String? username}) async {
-    var endpoint = '/user/profile?';
-    if (userId != null) endpoint += 'user_id=$userId';
-    if (username != null) endpoint += 'username=$username';
-    final res = await _request('GET', endpoint);
-    if (res['success'] == true && res['user'] != null) {
-      return User.fromJson(res['user'] as Map<String, dynamic>);
-    }
-    return null;
-  }
+ /// Получить профиль другого пользователя
+ static Future<User?> getUserProfile({String? userId, String? username}) async {
+   var endpoint = '/user/profile?';
+   if (userId != null) endpoint += 'user_id=$userId';
+   if (username != null) endpoint += 'username=$username';
+   final res = await _request('GET', endpoint);
+   if (res['success'] == true && res['user'] != null) {
+     return User.fromJson(res['user'] as Map<String, dynamic>);
+   }
+   return null;
+ }
+
+ /// Поиск пользователей
+ static Future<List<User>> searchUsers(String query, {int limit = 20}) async {
+   final res = await _request(
+     'GET',
+     '/user/search?q=${Uri.encodeComponent(query)}&limit=$limit',
+   );
+   if (res['success'] == true && res['users'] != null) {
+     return (res['users'] as List)
+         .map((u) => User.fromJson(u as Map<String, dynamic>))
+         .toList();
+   }
+   return [];
+ }
+
+   static Future<User?> getUserProfile({String? userId, String? username}) async {
+     var endpoint = '/user/profile?';
+     if (userId != null) endpoint += 'user_id=$userId';
+     if (username != null) endpoint += 'username=$username';
+     final res = await _request('GET', endpoint);
+     if (res['success'] == true && res['user'] != null) {
+       return User.fromJson(res['user'] as Map<String, dynamic>);
+     }
+     return null;
+   }
 
   static Future<List<User>> searchUsers(String query, {int limit = 20}) async {
     final res = await _request('GET', '/user/search?q=${Uri.encodeComponent(query)}&limit=$limit');

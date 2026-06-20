@@ -18,14 +18,74 @@ class UserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: CircleAvatar(
-        backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-        child: user.avatarUrl == null ? Text(user.initial) : null,
+      leading: Stack(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundImage: user.avatarUrl != null
+                ? NetworkImage(user.avatarUrl!)
+                : null,
+            backgroundColor: _parseColor(user.avatarColor) ??
+                Theme.of(context).colorScheme.primary,
+            child: user.avatarUrl == null
+                ? Text(
+                    user.initials,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
+          ),
+          if (user.isOnline)
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ),
+        ],
       ),
-      title: Text(user.displayName),
-      subtitle: Text(subtitle ?? '@${user.username}'),
-      trailing: trailing ?? (user.isOnline ? const Icon(Icons.circle, color: Colors.green, size: 12) : null),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              user.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (user.isPremium)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(Icons.verified,
+                  size: 16, color: Colors.amber[700]),
+            ),
+        ],
+      ),
+      subtitle: Text(
+        subtitle ??
+            '@${user.username ?? 'username'}${user.customStatusEmoji != null ? ' ${user.customStatusEmoji}' : ''}',
+      ),
+      trailing: trailing,
       onTap: onTap,
     );
+  }
+
+  Color? _parseColor(String? hex) {
+    if (hex == null || hex.isEmpty) return null;
+    try {
+      return Color(int.parse(hex.replaceAll('#', '0xFF')));
+    } catch (_) {
+      return null;
+    }
   }
 }
