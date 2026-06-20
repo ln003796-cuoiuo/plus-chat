@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/message.dart';
 
+/// Виджет для отображения сообщения в чате
 class MessageBubble extends StatelessWidget {
   final Message message;
   final bool isMe;
   final bool showSenderName;
+  final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
   const MessageBubble({
@@ -12,30 +14,27 @@ class MessageBubble extends StatelessWidget {
     required this.message,
     required this.isMe,
     this.showSenderName = false,
+    this.onTap,
     this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
-        margin: EdgeInsets.only(
-          left: isMe ? 64 : 8,
-          right: isMe ? 8 : 64,
-          top: 4,
-          bottom: 4,
-        ),
+        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
         child: Column(
           crossAxisAlignment:
               isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            // Имя отправителя (для групп)
-            if (showSenderName && !isMe)
+            // Имя отправителя (для групповых чатов)
+            if (showSenderName && !isMe && message.sender != null)
               Padding(
-                padding: const EdgeInsets.only(left: 12, bottom: 4),
+                padding: const EdgeInsets.only(left: 12, bottom: 2),
                 child: Text(
-                  message.sender?.displayName ?? 'Пользователь',
+                  message.sender!.displayName,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -46,9 +45,8 @@ class MessageBubble extends StatelessWidget {
 
             // Пузырь сообщения
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
               ),
               decoration: BoxDecoration(
                 color: _getBackgroundColor(context),
@@ -76,7 +74,7 @@ class MessageBubble extends StatelessWidget {
                   // Контент сообщения
                   _buildContent(context),
 
-                  // Вложения
+                  // Вложения (фото/видео/файлы)
                   if (message.hasAttachments) _buildAttachments(context),
 
                   // Время и статусы
@@ -107,7 +105,7 @@ class MessageBubble extends StatelessWidget {
         : Theme.of(context).colorScheme.surfaceVariant;
   }
 
-  /// Цвет имени отправителя
+  /// Цвет имени отправителя (по hash ID)
   Color _getSenderColor(String senderId) {
     final colors = [
       Colors.red,
@@ -123,10 +121,10 @@ class MessageBubble extends StatelessWidget {
     return colors[index];
   }
 
-  /// Ответ на сообщение
+  /// Блок ответа на сообщение
   Widget _buildReply(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.05),
@@ -166,8 +164,10 @@ class MessageBubble extends StatelessWidget {
 
   /// Основной контент сообщения
   Widget _buildContent(BuildContext context) {
-    // Если это не текст, показываем тип
-    if (message.type != MessageType.text && message.content.isEmpty) {
+    // Если это не текст и нет вложений — показываем тип
+    if (message.type != MessageType.text &&
+        message.content.isEmpty &&
+        !message.hasAttachments) {
       return Padding(
         padding: const EdgeInsets.all(12),
         child: Text(
@@ -180,6 +180,7 @@ class MessageBubble extends StatelessWidget {
       );
     }
 
+    // Если контент пустой — ничего не показываем
     if (message.content.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -206,11 +207,11 @@ class MessageBubble extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               color: Colors.grey[200],
             ),
-            child: att.type == 'photo'
+            child: att.fileType == 'photo'
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
-                      att.url,
+                      att.fileUrl,
                       width: 200,
                       fit: BoxFit.cover,
                     ),
@@ -220,7 +221,7 @@ class MessageBubble extends StatelessWidget {
                     child: Row(
                       children: [
                         Icon(
-                          att.type == 'video'
+                          att.fileType == 'video'
                               ? Icons.videocam
                               : Icons.attach_file,
                           size: 24,
@@ -228,7 +229,7 @@ class MessageBubble extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            att.name ?? 'Файл',
+                            att.fileName ?? 'Файл',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -242,7 +243,7 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  /// Время и статусы
+  /// Время и статусы доставки
   Widget _buildFooter(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 4, bottom: 4),
@@ -302,50 +303,44 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  /// Иконка статуса доставки
+  /// Иконка статуса сообщения
   IconData _getStatusIcon() {
-    if (message.viewsCount > 0) {
-      return Icons.visibility;
-    }
-    if (message.isSending) {
-      return Icons.schedule;
-    }
-    return Icons.check;
+    if (message.isSending) return Icons.access_time;
+    if (message.isFailed) return Icons.error;
+    if (message.id > 0) return Icons.done_all;
+    return Icons.done;
   }
 
-  /// Реакции
+  /// Реакции на сообщение
   Widget _buildReactions(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+      ),
       child: Wrap(
         spacing: 4,
-        runSpacing: 4,
+        runSpacing: 2,
         children: message.reactions.map((reaction) {
           return Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
               color: reaction.hasMyReaction
                   ? Theme.of(context).primaryColor.withOpacity(0.2)
-                  : Colors.grey[200],
-              borderRadius: BorderRadius.circular(12),
+                  : Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
               border: reaction.hasMyReaction
-                  ? Border.all(
-                      color: Theme.of(context).primaryColor,
-                      width: 1,
-                    )
+                  ? Border.all(color: Theme.of(context).primaryColor, width: 1)
                   : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  reaction.emoji,
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(width: 4),
+                Text(reaction.emoji, style: const TextStyle(fontSize: 14)),
+                const SizedBox(width: 2),
                 Text(
                   '${reaction.count}',
                   style: TextStyle(
