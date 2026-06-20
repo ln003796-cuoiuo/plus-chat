@@ -8,7 +8,6 @@ import '../widgets/message_bubble.dart';
 
 class ChatScreen extends StatefulWidget {
   final Chat chat;
-
   const ChatScreen({super.key, required this.chat});
 
   @override
@@ -19,13 +18,12 @@ class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
-  
+
   List<Message> _messages = [];
   bool _loading = true;
   bool _sending = false;
   String? _myUserId;
   Timer? _pollTimer;
-  
   Message? _replyTo;
 
   @override
@@ -46,18 +44,13 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       if (!silent) setState(() => _loading = true);
       final messages = await ApiService.getMessages(widget.chat.id);
-      
       if (mounted) {
         final oldCount = _messages.length;
         setState(() {
           _messages = messages;
           _loading = false;
         });
-        
-        if (messages.length > oldCount) {
-          _scrollToBottom();
-        }
-        
+        if (messages.length > oldCount) _scrollToBottom();
         for (final msg in messages) {
           if (msg.senderId != _myUserId && msg.id > 0) {
             ApiService.markAsRead(msg.id);
@@ -84,20 +77,17 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    
     _controller.clear();
     setState(() {
       _sending = true;
       _replyTo = null;
     });
-
     try {
       final message = await ApiService.sendMessage(
         chatId: widget.chat.id,
         content: text,
         replyTo: _replyTo?.id.toString(),
       );
-      
       if (message != null) {
         await _loadMessages(silent: true);
         _scrollToBottom();
@@ -121,56 +111,12 @@ class _ChatScreenState extends State<ChatScreen> {
     _focusNode.requestFocus();
   }
 
-  void _showMessageOptions(Message message) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.reply),
-              title: const Text('Ответить'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _setReply(message);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: const Text('Копировать'),
-              onTap: () {
-                Navigator.pop(ctx);
-              },
-            ),
-            if (message.senderId == _myUserId) ...[
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Редактировать'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Удалить', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                },
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
-    _pollTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
+    _pollTimer?.cancel();
     super.dispose();
   }
 
@@ -182,14 +128,14 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: Theme.of(context).primaryColor,
-              backgroundImage: widget.chat.companion?.avatarUrl != null
-                  ? NetworkImage(widget.chat.companion!.avatarUrl!)
+              backgroundImage: widget.chat.avatarUrl != null
+                  ? NetworkImage(widget.chat.avatarUrl!)
                   : null,
-              child: widget.chat.companion?.avatarUrl == null
+              child: widget.chat.avatarUrl == null
                   ? Text(
                       widget.chat.initial,
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 14),
                     )
                   : null,
             ),
@@ -205,7 +151,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    widget.chat.isCompanionOnline ? 'в сети' : 'был(а) недавно',
+                    widget.chat.isCompanionOnline
+                        ? 'в сети'
+                        : 'был(а) недавно',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.normal,
@@ -217,17 +165,45 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.call),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.videocam),
-            onPressed: () {},
-          ),
+          // Кнопка mute/unmute для групп и каналов
+          if (widget.chat.type != ChatType.private)
+            IconButton(
+              icon: Icon(widget.chat.isMuted
+                  ? Icons.notifications_off
+                  : Icons.notifications),
+              onPressed: () async {
+                try {
+                  if (widget.chat.isMuted) {
+                    await ApiService.unmuteChat(widget.chat.id);
+                  } else {
+                    await ApiService.muteChat(widget.chat.id);
+                  }
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(widget.chat.isMuted
+                            ? 'Звук включён'
+                            : 'Звук выключен'),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Ошибка: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.more_vert),
-            onPressed: () {},
+            onPressed: () {
+              // TODO: Меню чата
+            },
           ),
         ],
       ),
@@ -237,10 +213,10 @@ class _ChatScreenState extends State<ChatScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _messages.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'Начните общение!',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Colors.grey[600]),
                         ),
                       )
                     : ListView.builder(
@@ -251,27 +227,34 @@ class _ChatScreenState extends State<ChatScreen> {
                           final msg = _messages[index];
                           final isMe = msg.senderId == _myUserId;
                           final showName = widget.chat.type != ChatType.private &&
+                              !isMe &&
                               (index == 0 ||
-                                  _messages[index - 1].senderId != msg.senderId);
-                          
+                                  _messages[index - 1].senderId !=
+                                      msg.senderId);
                           return MessageBubble(
                             message: msg,
                             isMe: isMe,
                             showSenderName: showName,
-                            onLongPress: () => _showMessageOptions(msg),
+                            onLongPress: () => _setReply(msg),
                           );
                         },
                       ),
           ),
-          
+          // Ответ на сообщение
           if (_replyTo != null)
             Container(
               padding: const EdgeInsets.all(8),
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context).primaryColor,
+                    width: 3,
+                  ),
+                ),
+              ),
               child: Row(
                 children: [
-                  Icon(Icons.reply, color: Theme.of(context).primaryColor),
-                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,7 +283,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
-          
+          // Поле ввода
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -318,7 +301,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.attach_file),
-                    onPressed: () {},
+                    onPressed: () {
+                      // TODO: Вложения
+                    },
                   ),
                   Expanded(
                     child: TextField(

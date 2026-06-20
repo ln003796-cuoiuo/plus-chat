@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/message.dart';
 
-/// Виджет для отображения сообщения в чате
 class MessageBubble extends StatelessWidget {
   final Message message;
   final bool isMe;
   final bool showSenderName;
-  final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
   const MessageBubble({
@@ -14,26 +12,30 @@ class MessageBubble extends StatelessWidget {
     required this.message,
     required this.isMe,
     this.showSenderName = false,
-    this.onTap,
     this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+        margin: EdgeInsets.only(
+          left: isMe ? 64 : 8,
+          right: isMe ? 8 : 64,
+          top: 4,
+          bottom: 4,
+        ),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            // Имя отправителя (для групповых чатов)
-            if (showSenderName && !isMe && message.sender != null)
+            // Имя отправителя (для групп)
+            if (showSenderName && !isMe)
               Padding(
-                padding: const EdgeInsets.only(left: 12, bottom: 2),
+                padding: const EdgeInsets.only(left: 12, bottom: 4),
                 child: Text(
-                  message.sender!.displayName,
+                  message.sender?.displayName ?? 'Пользователь',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -41,11 +43,12 @@ class MessageBubble extends StatelessWidget {
                   ),
                 ),
               ),
-            
+
             // Пузырь сообщения
             Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
               ),
               decoration: BoxDecoration(
                 color: _getBackgroundColor(context),
@@ -69,17 +72,16 @@ class MessageBubble extends StatelessWidget {
                   // Ответ на сообщение
                   if (message.replyToMessage != null)
                     _buildReply(context),
-                  
+
                   // Контент сообщения
                   _buildContent(context),
-                  
+
                   // Вложения
-                  if (message.hasAttachments)
-                    _buildAttachments(context),
-                  
+                  if (message.hasAttachments) _buildAttachments(context),
+
                   // Время и статусы
                   _buildFooter(context),
-                  
+
                   // Реакции
                   if (message.reactions.isNotEmpty)
                     _buildReactions(context),
@@ -124,7 +126,7 @@ class MessageBubble extends StatelessWidget {
   /// Ответ на сообщение
   Widget _buildReply(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.05),
@@ -200,110 +202,99 @@ class MessageBubble extends StatelessWidget {
         children: message.attachments.map((att) {
           return Container(
             margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.05),
               borderRadius: BorderRadius.circular(8),
+              color: Colors.grey[200],
             ),
-            child: Row(
-              children: [
-                Icon(_getAttachmentIcon(att.fileType), size: 24),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        att.fileName ?? att.fileType,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                      if (att.fileSize != null)
-                        Text(
-                          att.fileSizeFormatted,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[600],
+            child: att.type == 'photo'
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      att.url,
+                      width: 200,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(
+                          att.type == 'video'
+                              ? Icons.videocam
+                              : Icons.attach_file,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            att.name ?? 'Файл',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
           );
         }).toList(),
       ),
     );
   }
 
-  /// Иконка для типа вложения
-  IconData _getAttachmentIcon(String fileType) {
-    switch (fileType) {
-      case 'photo':
-        return Icons.image;
-      case 'video':
-        return Icons.videocam;
-      case 'voice':
-        return Icons.mic;
-      case 'video_note':
-        return Icons.video_camera_back;
-      case 'sticker':
-        return Icons.emoji_emotions;
-      default:
-        return Icons.attach_file;
-    }
-  }
-
-  /// Футер с временем и статусами
+  /// Время и статусы
   Widget _buildFooter(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.only(right: 4, bottom: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Индикатор отправки
           if (message.isSending)
-            const Padding(
-              padding: EdgeInsets.only(right: 4),
-              child: SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
-          
+
           // Индикатор ошибки
           if (message.isFailed)
             const Padding(
               padding: EdgeInsets.only(right: 4),
               child: Icon(Icons.error, size: 14, color: Colors.red),
             ),
-          
+
           // Метка "отредактировано"
           if (message.edited)
             Padding(
               padding: const EdgeInsets.only(right: 4),
               child: Text(
                 'ред.',
-                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[600],
+                ),
               ),
             ),
-          
+
           // Время
           Text(
             message.timeFormatted,
-            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
           ),
-          
+
           // Статусы доставки (только для своих сообщений)
           if (isMe) ...[
             const SizedBox(width: 4),
             Icon(
               _getStatusIcon(),
               size: 14,
-              color: Colors.grey[600],
+              color: message.viewsCount > 0
+                  ? Colors.blue
+                  : Colors.grey[600],
             ),
           ],
         ],
@@ -311,44 +302,50 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  /// Иконка статуса сообщения
+  /// Иконка статуса доставки
   IconData _getStatusIcon() {
-    if (message.isSending) return Icons.access_time;
-    if (message.isFailed) return Icons.error;
-    if (message.id > 0) return Icons.done_all;
-    return Icons.done;
+    if (message.viewsCount > 0) {
+      return Icons.visibility;
+    }
+    if (message.isSending) {
+      return Icons.schedule;
+    }
+    return Icons.check;
   }
 
-  /// Реакции на сообщение
+  /// Реакции
   Widget _buildReactions(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
       child: Wrap(
         spacing: 4,
-        runSpacing: 2,
+        runSpacing: 4,
         children: message.reactions.map((reaction) {
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
             decoration: BoxDecoration(
               color: reaction.hasMyReaction
                   ? Theme.of(context).primaryColor.withOpacity(0.2)
-                  : Colors.grey.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+                  : Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
               border: reaction.hasMyReaction
-                  ? Border.all(color: Theme.of(context).primaryColor, width: 1)
+                  ? Border.all(
+                      color: Theme.of(context).primaryColor,
+                      width: 1,
+                    )
                   : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(reaction.emoji, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 2),
+                Text(
+                  reaction.emoji,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(width: 4),
                 Text(
                   '${reaction.count}',
                   style: TextStyle(

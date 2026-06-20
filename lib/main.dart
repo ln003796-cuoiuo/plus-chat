@@ -3,7 +3,14 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/verify_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/friends_screen.dart';
+import 'screens/contacts_screen.dart';
+import 'screens/search_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/chat_screen.dart';
 import 'services/auth_service.dart';
+import 'models/chat.dart';
 
 void main() {
   runApp(const PlusChatApp());
@@ -32,6 +39,11 @@ class PlusChatApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),
+        '/friends': (context) => const FriendsScreen(),
+        '/contacts': (context) => const ContactsScreen(),
+        '/search': (context) => const SearchScreen(),
+        '/profile': (context) => const ProfileScreen(),
+        '/settings': (context) => const SettingsScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/verify') {
@@ -41,6 +53,12 @@ class PlusChatApp extends StatelessWidget {
               email: args['email'] as String,
               type: args['type'] as String? ?? 'registration',
             ),
+          );
+        }
+        if (settings.name == '/chat') {
+          final chat = settings.arguments as Chat;
+          return MaterialPageRoute(
+            builder: (context) => ChatScreen(chat: chat),
           );
         }
         return null;
@@ -63,11 +81,9 @@ class AuthWrapper extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
         if (snapshot.data == true) {
           return const HomeScreen();
         }
-
         return const LoginScreen();
       },
     );
