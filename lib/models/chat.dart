@@ -1,12 +1,10 @@
-import 'user.dart';
-
 enum ChatType {
   private,
   group,
   channel;
 
-  static ChatType fromString(String? value) {
-    switch (value) {
+  static ChatType fromString(String? type) {
+    switch (type) {
       case 'group':
         return ChatType.group;
       case 'channel':
@@ -19,52 +17,12 @@ enum ChatType {
   String get label {
     switch (this) {
       case ChatType.private:
-        return 'Личный чат';
+        return 'Личный';
       case ChatType.group:
         return 'Группа';
       case ChatType.channel:
         return 'Канал';
     }
-  }
-}
-
-enum MemberRole {
-  owner,
-  admin,
-  moderator,
-  member;
-
-  static MemberRole fromString(String? value) {
-    switch (value) {
-      case 'owner':
-        return MemberRole.owner;
-      case 'admin':
-        return MemberRole.admin;
-      case 'moderator':
-        return MemberRole.moderator;
-      default:
-        return MemberRole.member;
-    }
-  }
-}
-
-class ChatMember {
-  final User user;
-  final MemberRole role;
-  final String joinedAt;
-
-  ChatMember({
-    required this.user,
-    required this.role,
-    required this.joinedAt,
-  });
-
-  factory ChatMember.fromJson(Map<String, dynamic> json) {
-    return ChatMember(
-      user: User.fromJson(json),
-      role: MemberRole.fromString(json['role']),
-      joinedAt: json['joined_at'] ?? '',
-    );
   }
 }
 
@@ -77,22 +35,24 @@ class Chat {
   final String? createdBy;
   final bool isPublic;
   final String? inviteLink;
-  final int maxMembers;
-  final bool isVerified;
-  final String createdAt;
-
-  // Для личных чатов — собеседник
-  final User? companion;
-
-  // Для групповых — участники
-  final List<ChatMember> members;
-
-  // Метаданные для списка чатов
-  final String? lastMessage;
-  final String? lastMessageAt;
+  final int membersCount;
   final int unreadCount;
+  final String? lastMessage;
+  final String? lastMessageType;
+  final String? lastMessageAt;
   final bool isMuted;
-  final MemberRole? myRole;
+  final String? mutedUntil;
+  final bool isArchived;
+  final bool isFavorite;
+  final bool hasPinned;
+  final String? myRole;
+  final String? companionId;
+  final String? companionFirstName;
+  final String? companionLastName;
+  final String? companionUsername;
+  final String? companionAvatar;
+  final bool isCompanionOnline;
+  final String? companionLastSeen;
 
   Chat({
     required this.id,
@@ -103,33 +63,60 @@ class Chat {
     this.createdBy,
     this.isPublic = false,
     this.inviteLink,
-    this.maxMembers = 500,
-    this.isVerified = false,
-    required this.createdAt,
-    this.companion,
-    this.members = const [],
-    this.lastMessage,
-    this.lastMessageAt,
+    this.membersCount = 0,
     this.unreadCount = 0,
+    this.lastMessage,
+    this.lastMessageType,
+    this.lastMessageAt,
     this.isMuted = false,
+    this.mutedUntil,
+    this.isArchived = false,
+    this.isFavorite = false,
+    this.hasPinned = false,
     this.myRole,
+    this.companionId,
+    this.companionFirstName,
+    this.companionLastName,
+    this.companionUsername,
+    this.companionAvatar,
+    this.isCompanionOnline = false,
+    this.companionLastSeen,
   });
 
+  String get displayName {
+    if (type == ChatType.private) {
+      final name = '${companionFirstName ?? ''} ${companionLastName ?? ''}'.trim();
+      return name.isNotEmpty ? name : (companionUsername ?? 'Пользователь');
+    }
+    return title ?? 'Без названия';
+  }
+
+  String get initial {
+    final name = displayName;
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  String get lastMessageTimeFormatted {
+    if (lastMessageAt == null) return '';
+    try {
+      final dt = DateTime.parse(lastMessageAt!);
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+      if (diff.inDays == 0) {
+        return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } else if (diff.inDays == 1) {
+        return 'Вчера';
+      } else if (diff.inDays < 7) {
+        return '${diff.inDays} дн.';
+      } else {
+        return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}';
+      }
+    } catch (_) {
+      return '';
+    }
+  }
+
   factory Chat.fromJson(Map<String, dynamic> json) {
-    // Парсим собеседника для личных чатов
-    User? companion;
-    if (json['companion'] != null) {
-      companion = User.fromJson(json['companion']);
-    }
-
-    // Парсим участников
-    List<ChatMember> members = [];
-    if (json['members'] != null && json['members'] is List) {
-      members = (json['members'] as List)
-          .map((m) => ChatMember.fromJson(m))
-          .toList();
-    }
-
     return Chat(
       id: json['id'] ?? '',
       type: ChatType.fromString(json['type']),
@@ -137,116 +124,26 @@ class Chat {
       description: json['description'],
       avatarUrl: json['avatar_url'],
       createdBy: json['created_by'],
-      isPublic: json['is_public'] == true,
+      isPublic: json['is_public'] == 1 || json['is_public'] == true,
       inviteLink: json['invite_link'],
-      maxMembers: json['max_members'] ?? 500,
-      isVerified: json['is_verified'] == true,
-      createdAt: json['created_at'] ?? '',
-      companion: companion,
-      members: members,
-      lastMessage: json['last_message'],
-      lastMessageAt: json['last_message_at'],
+      membersCount: json['members_count'] ?? 0,
       unreadCount: json['unread_count'] ?? 0,
-      isMuted: json['muted_until'] != null,
-      myRole: json['role'] != null ? MemberRole.fromString(json['role']) : null,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'type': type.name,
-      'title': title,
-      'description': description,
-      'avatar_url': avatarUrl,
-      'created_by': createdBy,
-      'is_public': isPublic,
-      'invite_link': inviteLink,
-      'max_members': maxMembers,
-      'is_verified': isVerified,
-      'created_at': createdAt,
-      'companion': companion?.toJson(),
-      'members': members.map((m) => {
-        ...m.user.toJson(),
-        'role': m.role.name,
-        'joined_at': m.joinedAt,
-      }).toList(),
-      'last_message': lastMessage,
-      'last_message_at': lastMessageAt,
-      'unread_count': unreadCount,
-    };
-  }
-
-  // Отображаемое имя чата
-  String get displayName {
-    if (type == ChatType.private) {
-      return companion?.displayName ?? 'Личный чат';
-    }
-    return title ?? 'Без названия';
-  }
-
-  // Первая буква для аватара
-  String get initial {
-    final name = displayName;
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
-  }
-
-  // Онлайн ли собеседник (для личных чатов)
-  bool get isCompanionOnline => companion?.isOnline ?? false;
-
-  // Количество участников
-  int get membersCount => members.length;
-
-  // Форматированное время последнего сообщения
-  String get lastMessageTime {
-    if (lastMessageAt == null) return '';
-    try {
-      final dt = DateTime.parse(lastMessageAt!);
-      final now = DateTime.now();
-      final diff = now.difference(dt);
-
-      if (diff.inMinutes < 1) return 'только что';
-      if (diff.inHours < 1) return '${diff.inMinutes} мин';
-      if (diff.inDays < 1) {
-        return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-      }
-      if (diff.inDays < 7) {
-        const days = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
-        return days[dt.weekday - 1];
-      }
-      return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
-    } catch (_) {
-      return '';
-    }
-  }
-
-  Chat copyWith({
-    String? title,
-    String? avatarUrl,
-    String? lastMessage,
-    String? lastMessageAt,
-    int? unreadCount,
-    User? companion,
-  }) {
-    return Chat(
-      id: id,
-      type: type,
-      title: title ?? this.title,
-      description: description,
-      avatarUrl: avatarUrl ?? this.avatarUrl,
-      createdBy: createdBy,
-      isPublic: isPublic,
-      inviteLink: inviteLink,
-      maxMembers: maxMembers,
-      isVerified: isVerified,
-      createdAt: createdAt,
-      companion: companion ?? this.companion,
-      members: members,
-      lastMessage: lastMessage ?? this.lastMessage,
-      lastMessageAt: lastMessageAt ?? this.lastMessageAt,
-      unreadCount: unreadCount ?? this.unreadCount,
-      isMuted: isMuted,
-      myRole: myRole,
+      lastMessage: json['last_message'],
+      lastMessageType: json['last_message_type'],
+      lastMessageAt: json['last_message_at'],
+      isMuted: json['is_muted'] == 1 || json['is_muted'] == true,
+      mutedUntil: json['muted_until'],
+      isArchived: json['is_archived'] == 1 || json['is_archived'] == true,
+      isFavorite: json['is_favorite'] == 1 || json['is_favorite'] == true,
+      hasPinned: json['has_pinned'] == 1 || json['has_pinned'] == true,
+      myRole: json['my_role'],
+      companionId: json['companion']?['id'],
+      companionFirstName: json['companion']?['first_name'],
+      companionLastName: json['companion']?['last_name'],
+      companionUsername: json['companion']?['username'],
+      companionAvatar: json['companion']?['avatar_url'],
+      isCompanionOnline: json['companion']?['is_online'] == true,
+      companionLastSeen: json['companion']?['last_seen'],
     );
   }
 }
