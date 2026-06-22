@@ -98,17 +98,24 @@ class ApiService {
     });
   }
 
-  /// Вход по паролю
-  static Future<Map<String, dynamic>> login({
-    required String identifier,
-    required String password,
-  }) {
-    return _request('POST', '/login/login', auth: false, body: {
-      'type': 'password',
-      'identifier': identifier,
-      'password': password,
-    });
-  }
+  // ============================================
+  // ВХОД ПО ПАРОЛЮ (/login/login)
+  // ============================================
+ static Future<Map<String, dynamic>> login({
+   required String identifier,
+   required String password,
+ }) async {
+   final data = await _request('POST', '/login/login', auth: false, body: {
+     'type': 'password',
+     'identifier': identifier,
+     'password': password,
+   });
+
+   if (data['success'] == true && data['access_token'] != null) {
+     await _saveAuthData(data);
+   }
+   return data;
+ }
 
   /// Вход по коду (запрос кода)
   static Future<Map<String, dynamic>> loginWithCodeRequest({
