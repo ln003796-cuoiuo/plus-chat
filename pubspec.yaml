@@ -13,7 +13,6 @@ dependencies:
   shared_preferences: ^2.2.2
   intl: ^0.18.1
 
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -28,7 +27,7 @@ flutter:
 # Конфигурация иконок
 flutter_launcher_icons:
   android: true
-  ios: false  # ← Отключаем iOS
+  ios: false # ← Отключаем iOS
   image_path: "assets/icon.png"
   min_sdk_android: 21
   adaptive_icon_background: "#075E54"
