@@ -48,9 +48,11 @@ class _VerifyScreenState extends State<VerifyScreen> {
   Future<void> _verify() async {
     final code = _codeController.text.trim();
     if (code.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Введите 6-значный код')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Введите 6-значный код')),
+        );
+      }
       return;
     }
 
@@ -63,16 +65,17 @@ class _VerifyScreenState extends State<VerifyScreen> {
       );
 
       if (response['success'] == true) {
-       if (widget.onVerified != null) {
-         widget.onVerified!(code);  // ← ВЫЗВАТЬ CALLBACK
+        // Если передан callback — вызываем его (для регистрации)
+        if (widget.onVerified != null) {
+          widget.onVerified!(code);
         } else if (mounted) {
+          // Иначе — переходим на главный экран (для входа)
           Navigator.pushNamedAndRemoveUntil(
-           context,
-           '/home',
-           (route) => false,
-         );
-       }
-     }
+            context,
+            '/home',
+            (route) => false,
+          );
+        }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -155,6 +158,12 @@ class _VerifyScreenState extends State<VerifyScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Подтверждение email'),
+        leading: widget.onBack != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+              )
+            : null,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -198,19 +207,18 @@ class _VerifyScreenState extends State<VerifyScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               child: _isLoading
-                  ? const CircularProgressIndicator()
-                  : const Text('Подтвердить',
-                      style: TextStyle(fontSize: 16)),
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Подтвердить', style: TextStyle(fontSize: 16)),
             ),
             const SizedBox(height: 16),
             TextButton(
-              onPressed: _resendTimer > 0 || _isLoading
-                  ? null
-                  : _resendCode,
+              onPressed: _resendTimer > 0 || _isLoading ? null : _resendCode,
               child: _resendTimer > 0
-                  ? Text(
-                      'Отправить код повторно через $_resendTimer сек',
-                    )
+                  ? Text('Отправить код повторно через $_resendTimer сек')
                   : const Text('Отправить код повторно'),
             ),
           ],
