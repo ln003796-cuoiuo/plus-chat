@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'web_view_screen.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 
@@ -58,7 +59,7 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('Изменить пароль'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Экран смены пароля
+              Navigator.pushNamed(context, '/change-password');
             },
           ),
           const Divider(),
@@ -108,7 +109,15 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('Политика конфиденциальности'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Открыть WebView с политикой
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const WebViewScreen(
+                    title: 'Политика конфиденциальности',
+                    content: _privacyText,
+                  ),
+                ),
+              );
             },
           ),
           ListTile(
@@ -116,7 +125,15 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('Пользовательское соглашение'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Открыть WebView с соглашением
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const WebViewScreen(
+                    title: 'Пользовательское соглашение',
+                    content: _termsText,
+                  ),
+                ),
+              );
             },
           ),
           const Divider(),
@@ -129,4 +146,49 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
+  static const String _privacyText = '''
+ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ
+
+Дата вступления в силу: 1 января 2026 г.
+
+1. СБОР ИНФОРМАЦИИ
+Мы собираем информацию, которую вы предоставляете при регистрации: имя, email, username.
+
+2. ИСПОЛЬЗОВАНИЕ ИНФОРМАЦИИ
+Ваша информация используется для:
+- Создания и ведения вашего аккаунта
+- Обеспечения работы мессенджера
+- Улучшения качества сервиса
+
+3. БЕЗОПАСНОСТЬ
+Мы используем современные методы шифрования для защиты ваших данных.
+
+4. КОНТАКТЫ
+По вопросам конфиденциальности: privacy@плюсчат.рф
+''';
+
+  static const String _termsText = '''
+ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ
+
+Дата вступления в силу: 1 января 2026 г.
+
+1. ПРИНЯТИЕ УСЛОВИЙ
+Используя приложение "Плюс Чат", вы соглашаетесь с настоящими условиями.
+
+2. ПРАВИЛА ИСПОЛЬЗОВАНИЯ
+Запрещается:
+- Использование сервиса для незаконной деятельности
+- Рассылка спама
+- Оскорбление других пользователей
+- Выдача себя за другое лицо
+
+3. ОТВЕТСТВЕННОСТЬ
+Пользователь несёт ответственность за содержание своих сообщений.
+
+4. ИЗМЕНЕНИЕ УСЛОВИЙ
+Мы оставляем за собой право изменять условия использования.
+
+5. КОНТАКТЫ
+По вопросам: support@плюсчат.рф
+''';
 }

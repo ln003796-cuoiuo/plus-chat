@@ -225,10 +225,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Column(
                 children: [
-                  GestureDetector(
+                 GestureDetector(
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Открыть профиль
+                      Navigator.pushNamed(context, '/profile');
                     },
                     child: Stack(
                       children: [
@@ -345,16 +345,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: const Text('Контакты'),
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Открыть контакты
+                      Navigator.pushNamed(context, '/contacts');
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.people_outline),
-                    title: const Text('Друзья'),
-                    trailing: const Text('0', style: TextStyle(color: Colors.grey)),
+                    leading: const Icon(Icons.contacts_outlined),
+                    title: const Text('Контакты'),
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Открыть друзей
+                      Navigator.pushNamed(context, '/contacts');
                     },
                   ),
                   const Divider(),
@@ -363,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: const Text('Подарки'),
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Открыть подарки
+                      Navigator.pushNamed(context, '/gifts');
                     },
                   ),
                   const Divider(),
@@ -372,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: const Text('Настройки'),
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Открыть настройки
+                      Navigator.pushNamed(context, '/settings');
                     },
                   ),
                   ListTile(
@@ -394,62 +393,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildChatsList() {
     return Column(
-      children: [
-        // Приветствие пользователя
-        if (_currentUser != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  backgroundImage: _currentUser!.avatarUrl != null
-                      ? NetworkImage(_currentUser!.avatarUrl!)
-                      : null,
-                  child: _currentUser!.avatarUrl == null
-                      ? Text(
-                          _currentUser!.initials,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Привет, ${_currentUser!.firstName}!',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '@${_currentUser!.username ?? 'username'}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+      children: [        
         // Архив
         if (_archivedChats.isNotEmpty)
           InkWell(
             onTap: () {
-              // TODO: Открыть архив
+              Navigator.pushNamed(context, '/archived');
             },
             child: Container(
               width: double.infinity,

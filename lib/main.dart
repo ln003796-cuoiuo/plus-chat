@@ -9,6 +9,10 @@ import 'screens/search_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/chat_screen.dart';
+import 'screens/gifts_screen.dart';
+import 'screens/archived_chats_screen.dart';
+import 'screens/change_password_screen.dart';
+import 'screens/web_view_screen.dart';
 import 'services/auth_service.dart';
 import 'models/chat.dart';
 
@@ -42,6 +46,9 @@ class PlusChatApp extends StatelessWidget {
         '/friends': (context) => const FriendsScreen(),
         '/contacts': (context) => const ContactsScreen(),
         '/search': (context) => const SearchScreen(),
+        '/gifts': (context) => const GiftsScreen(),
+        '/archived': (context) => const ArchivedChatsScreen(),
+        '/change-password': (context) => const ChangePasswordScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/settings': (context) => const SettingsScreen(),
       },

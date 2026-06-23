@@ -306,7 +306,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         leading: const Icon(Icons.emoji_emotions_outlined),
                         title: const Text('Стикеры'),
                         onTap: () {
-                          Navigator.pushNamed(context, '/stickers');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Скоро будет доступно')),
+                          );
                         },
                       ),
                       const Divider(),
