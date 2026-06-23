@@ -1,14 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
 class VerifyScreen extends StatefulWidget {
   final String email;
   final String type; // 'registration' или 'login'
+  final void Function(String)? onVerified;
+  final VoidCallback? onBack;
 
   const VerifyScreen({
     super.key,
     required this.email,
     required this.type,
+    this.onVerified,
+    this.onBack,
   });
 
   @override
@@ -58,13 +63,16 @@ class _VerifyScreenState extends State<VerifyScreen> {
       );
 
       if (response['success'] == true) {
-        if (mounted) {
+       if (widget.onVerified != null) {
+         widget.onVerified!(code);  // ← ВЫЗВАТЬ CALLBACK
+        } else if (mounted) {
           Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/home',
-            (route) => false,
-          );
-        }
+           context,
+           '/home',
+           (route) => false,
+         );
+       }
+     }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

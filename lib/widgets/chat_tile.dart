@@ -4,17 +4,20 @@ import '../models/chat.dart';
 class ChatTile extends StatelessWidget {
   final Chat chat;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   const ChatTile({
     super.key,
     required this.chat,
     required this.onTap,
+    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(

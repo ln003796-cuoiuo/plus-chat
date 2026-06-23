@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         // Вход по паролю
         final response = await ApiService.login(
-          identifier: _emailController.text.trim(),
+          identifier: _identifierController.text.trim(),
           password: _passwordController.text,
         );
 

@@ -368,6 +368,13 @@ class ApiService {
     return _request('POST', '/chats/actions/mark-read', body: {'chat_ids': chatIds});
   }
 
+  static Future<Map<String, dynamic>> muteChat(String chatId, {int duration = 0}) {
+   return muteChats([chatId], duration: duration);
+ }
+
+  static Future<Map<String, dynamic>> unmuteChat(String chatId) {
+   return unmuteChats([chatId]);
+ }
   // ============================================
   // СООБЩЕНИЯ
   // ============================================
