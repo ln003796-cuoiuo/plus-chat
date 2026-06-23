@@ -173,7 +173,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   : Icons.notifications),
               onPressed: () async {
                 try {
-                  if (chat.isMuted) {
+                  if (widget.chat.isMuted) {
                     await ApiService.unmuteChats([widget.chat.id]);
                   } else {
                     await ApiService.muteChats([widget.chat.id]);
