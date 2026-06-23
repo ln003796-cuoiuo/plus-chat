@@ -76,7 +76,7 @@ class _ArchivedChatsScreenState extends State<ArchivedChatsScreen> {
                         child: const Icon(Icons.unarchive, color: Colors.white),
                       ),
                       onDismissed: (_) async {
-                        await ApiService.unarchiveChat(chat.id);
+                        await ApiService.unarchiveChats([chat.id]);
                         _loadChats();
                       },
                       child: ChatTile(
