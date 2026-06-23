@@ -225,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Column(
                 children: [
-                 GestureDetector(
+                  GestureDetector(
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/profile');
@@ -292,11 +292,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: const Text(
                       'В сети',
-                       style: const TextStyle(
-                         color: Colors.white,
-                         fontSize: 12,
-                         fontWeight: FontWeight.w500,
-                        ),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -350,11 +349,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.contacts_outlined),
-                    title: const Text('Контакты'),
+                    leading: const Icon(Icons.people_outline),
+                    title: const Text('Друзья'),
+                    trailing: const Text('0', style: TextStyle(color: Colors.grey)),
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/contacts');
+                      Navigator.pushNamed(context, '/friends');
                     },
                   ),
                   const Divider(),
