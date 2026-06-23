@@ -287,18 +287,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: (_currentUser?.isOnline ?? false) ? Colors.green : Colors.grey,
+                      color: Colors.green,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      _currentUser?.isOnline ?? false ? 'В сети' : 'Не в сети',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
+                    child: const Text(
+                      'В сети',
+                       style: const TextStyle(
+                         color: Colors.white,
+                         fontSize: 12,
+                         fontWeight: FontWeight.w500,
+                       ),
+                     ),
                   if (_currentUser?.isPremium ?? false) ...[
                     const SizedBox(height: 8),
                     Container(
