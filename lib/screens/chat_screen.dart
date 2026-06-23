@@ -173,10 +173,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   : Icons.notifications),
               onPressed: () async {
                 try {
-                  if (widget.chat.isMuted) {
-                    await ApiService.unmuteChat(widget.chat.id);
+                  if (chat.isMuted) {
+                    await ApiService.unmuteChats([widget.chat.id]);
                   } else {
-                    await ApiService.muteChat(widget.chat.id);
+                    await ApiService.muteChats([widget.chat.id]);
                   }
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
