@@ -296,10 +296,10 @@ class _HomeScreenState extends State<HomeScreen> {
                          color: Colors.white,
                          fontSize: 12,
                          fontWeight: FontWeight.w500,
-                       ),
-                     ),
-                   ),
-                 ),
+                        ),
+                      ),
+                    ),
+                  ),
                   if (_currentUser?.isPremium ?? false) ...[
                     const SizedBox(height: 8),
                     Container(
