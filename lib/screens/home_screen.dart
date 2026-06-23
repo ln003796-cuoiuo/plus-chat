@@ -298,6 +298,8 @@ class _HomeScreenState extends State<HomeScreen> {
                          fontWeight: FontWeight.w500,
                        ),
                      ),
+                   ),
+                 ),
                   if (_currentUser?.isPremium ?? false) ...[
                     const SizedBox(height: 8),
                     Container(
