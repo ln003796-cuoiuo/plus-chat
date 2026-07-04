@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
+import '../widgets/app_scaffold.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final String userId;
@@ -39,15 +40,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Профиль'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: _loading
+    return AppScaffold(
+      title: 'Профиль',
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _user == null
               ? const Center(child: Text('Пользователь не найден'))
@@ -237,9 +232,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             OutlinedButton.icon(
               onPressed: () async {
                 await ApiService.cancelFriendRequest(widget.userId);
-                if (mounted) {
-                  setState(() => _friendshipStatus = 'none');
-                }
+                if (mounted) setState(() => _friendshipStatus = 'none');
               },
               icon: const Icon(Icons.cancel),
               label: const Text('Отменить запрос'),
@@ -251,9 +244,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   child: FilledButton.icon(
                     onPressed: () async {
                       await ApiService.acceptFriendRequest(widget.userId);
-                      if (mounted) {
-                        setState(() => _friendshipStatus = 'friends');
-                      }
+                      if (mounted) setState(() => _friendshipStatus = 'friends');
                     },
                     icon: const Icon(Icons.check),
                     label: const Text('Принять'),
@@ -264,9 +255,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () async {
                       await ApiService.rejectFriendRequest(widget.userId);
-                      if (mounted) {
-                        setState(() => _friendshipStatus = 'none');
-                      }
+                      if (mounted) setState(() => _friendshipStatus = 'none');
                     },
                     icon: const Icon(Icons.close),
                     label: const Text('Отклонить'),
@@ -279,8 +268,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () {
-                      // TODO: Открыть чат
+                    onPressed: () async {
+                      final result = await ApiService.findPrivateChat(widget.userId);
+                      if (result['success'] == true && result['chat_id'] != null) {
+                        // TODO: Открыть чат
+                      }
                     },
                     icon: const Icon(Icons.chat),
                     label: const Text('Написать'),
@@ -302,9 +294,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       );
                       if (confirm == true) {
                         await ApiService.removeFriend(widget.userId);
-                        if (mounted) {
-                          setState(() => _friendshipStatus = 'none');
-                        }
+                        if (mounted) setState(() => _friendshipStatus = 'none');
                       }
                     },
                     icon: const Icon(Icons.person_remove),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/app_scaffold.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -9,111 +10,187 @@ class ChangePasswordScreen extends StatefulWidget {
 }
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
-  final _currentController = TextEditingController();
-  final _newController = TextEditingController();
-  final _confirmController = TextEditingController();
-  bool _loading = false;
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
+  bool _showCurrentPassword = false;
+  bool _showNewPassword = false;
+  bool _showConfirmPassword = false;
 
   @override
   void dispose() {
-    _currentController.dispose();
-    _newController.dispose();
-    _confirmController.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _change() async {
-    if (_newController.text != _confirmController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Пароли не совпадают')),
-      );
+  Future<void> _changePassword() async {
+    final currentPassword = _currentPasswordController.text;
+    final newPassword = _newPasswordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (currentPassword.isEmpty) {
+      _showError('Введите текущий пароль');
       return;
     }
-    if (_newController.text.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Минимум 8 символов')),
-      );
+    if (newPassword.length < 8) {
+      _showError('Новый пароль должен содержать минимум 8 символов');
+      return;
+    }
+    if (newPassword != confirmPassword) {
+      _showError('Пароли не совпадают');
+      return;
+    }
+    if (currentPassword == newPassword) {
+      _showError('Новый пароль должен отличаться от текущего');
       return;
     }
 
-    setState(() => _loading = true);
+    setState(() => _isLoading = true);
+
     try {
-      final res = await ApiService.updateSettings({
-        'current_password': _currentController.text,
-        'new_password': _newController.text,
+      final result = await ApiService.updateSettings({
+        'current_password': currentPassword,
+        'new_password': newPassword,
       });
-      if (res['success'] == true && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Пароль изменён')),
-        );
-        Navigator.pop(context);
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(res['error'] ?? 'Ошибка')),
-        );
+
+      if (result['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Пароль успешно изменён'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['error'] ?? 'Ошибка смены пароля'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
+          SnackBar(
+            content: Text('Ошибка сети: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Сменить пароль'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return AppScaffold(
+      title: 'Сменить пароль',
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _currentController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Текущий пароль',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _newController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Новый пароль',
-                border: OutlineInputBorder(),
-                helperText: 'Минимум 8 символов',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _confirmController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Повторите новый пароль',
-                border: OutlineInputBorder(),
-              ),
-            ),
+            const SizedBox(height: 20),
+            const Icon(Icons.lock_outline, size: 64, color: Color(0xFF075E54)),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _loading ? null : _change,
-                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: _loading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Сменить пароль'),
+            const Text(
+              'Смена пароля',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Введите текущий и новый пароль',
+              style: TextStyle(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            TextField(
+              controller: _currentPasswordController,
+              obscureText: !_showCurrentPassword,
+              decoration: InputDecoration(
+                labelText: 'Текущий пароль',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _showCurrentPassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() => _showCurrentPassword = !_showCurrentPassword);
+                  },
+                ),
               ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _newPasswordController,
+              obscureText: !_showNewPassword,
+              decoration: InputDecoration(
+                labelText: 'Новый пароль',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock_outline),
+                helperText: 'Минимум 8 символов',
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _showNewPassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() => _showNewPassword = !_showNewPassword);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _confirmPasswordController,
+              obscureText: !_showConfirmPassword,
+              decoration: InputDecoration(
+                labelText: 'Подтвердите новый пароль',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _showConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() => _showConfirmPassword = !_showConfirmPassword);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            FilledButton(
+              onPressed: _isLoading ? null : _changePassword,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                minimumSize: const Size.fromHeight(50),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Сменить пароль', style: TextStyle(fontSize: 16)),
             ),
           ],
         ),
