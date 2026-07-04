@@ -9,9 +9,6 @@ class AuthService {
   static const String _keyFirstName = 'first_name';
   static const String _keyLastName = 'last_name';
 
-  // ============================================
-  // СОХРАНЕНИЕ
-  // ============================================
   static Future<void> saveTokens(String accessToken, String refreshToken) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyAccessToken, accessToken);
@@ -36,9 +33,6 @@ class AuthService {
     await prefs.setString(_keyLastName, lastName);
   }
 
-  // ============================================
-  // ПОЛУЧЕНИЕ
-  // ============================================
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyAccessToken);
@@ -74,17 +68,11 @@ class AuthService {
     return prefs.getString(_keyLastName);
   }
 
-  // ============================================
-  // ПРОВЕРКА
-  // ============================================
   static Future<bool> isLoggedIn() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
   }
 
-  // ============================================
-  // ВЫХОД
-  // ============================================
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyAccessToken);

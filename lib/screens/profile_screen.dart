@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
+import '../widgets/app_scaffold.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -35,15 +36,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Профиль'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: _loading
+    return AppScaffold(
+      title: 'Профиль',
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _user == null
               ? const Center(child: Text('Ошибка загрузки профиля'))
@@ -51,7 +46,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     children: [
                       const SizedBox(height: 24),
-                      // Баннер
                       if (_user!.bannerUrl != null)
                         Container(
                           height: 120,
@@ -63,14 +57,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                         ),
-                      // Аватар
                       Stack(
                         alignment: Alignment.bottomCenter,
                         children: [
                           CircleAvatar(
                             radius: 60,
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
+                            backgroundColor: Theme.of(context).colorScheme.primary,
                             backgroundImage: _user!.avatarUrl != null
                                 ? NetworkImage(_user!.avatarUrl!)
                                 : null,
@@ -95,15 +87,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.green,
                                   shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: Colors.white, width: 3),
+                                  border: Border.all(color: Colors.white, width: 3),
                                 ),
                               ),
                             ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Имя
                       Text(
                         _user!.displayName,
                         style: const TextStyle(
@@ -120,14 +110,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Бейджи
                       Wrap(
                         spacing: 8,
                         children: [
                           if (_user!.isPremium)
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
@@ -137,8 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.star,
-                                      color: Colors.white, size: 14),
+                                  Icon(Icons.star, color: Colors.white, size: 14),
                                   SizedBox(width: 4),
                                   Text('Premium',
                                       style: TextStyle(
@@ -149,12 +136,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _user!.isOnline
-                                  ? Colors.green
-                                  : Colors.grey,
+                              color: _user!.isOnline ? Colors.green : Colors.grey,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -168,8 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           if (_user!.customStatusEmoji != null ||
                               _user!.customStatusText != null)
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.blue[100],
                                 borderRadius: BorderRadius.circular(12),
@@ -185,7 +168,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      // Bio
                       if (_user!.bio != null && _user!.bio!.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -211,52 +193,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       const SizedBox(height: 24),
-                      // Локация
                       if (_user!.city != null || _user!.country != null)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.location_on,
-                                  size: 16, color: Colors.grey),
+                              const Icon(Icons.location_on, size: 16, color: Colors.grey),
                               const SizedBox(width: 4),
                               Text(
-                                [
-                                  _user!.city,
-                                  _user!.country
-                                ].where((e) => e != null && e.isNotEmpty).join(', '),
+                                [_user!.city, _user!.country]
+                                    .where((e) => e != null && e.isNotEmpty)
+                                    .join(', '),
                                 style: TextStyle(color: Colors.grey[700]),
                               ),
                             ],
                           ),
                         ),
                       const SizedBox(height: 24),
-                      // Статистика
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
                           children: [
                             Expanded(
-                              child: _statCard('Подарки получено',
-                                  '${_user!.giftsReceivedCount}'),
+                              child: _statCard('Подарки', '${_user!.giftsReceivedCount}'),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _statCard(
-                                  'Plus Coins', '${_user!.plusCoins}'),
+                              child: _statCard('Монеты', '${_user!.plusCoins}'),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _statCard('Отправлено',
-                                  '${_user!.giftsSentCount}'),
+                              child: _statCard('Отправлено', '${_user!.giftsSentCount}'),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 24),
                       const Divider(),
-                      // Соцсети
                       if (_hasSocialLinks()) ...[
                         Padding(
                           padding: const EdgeInsets.all(16),
@@ -275,8 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (_user!.website != null)
                           _socialTile(Icons.language, 'Сайт', _user!.website!),
                         if (_user!.instagram != null)
-                          _socialTile(
-                              Icons.camera_alt, 'Instagram', _user!.instagram!),
+                          _socialTile(Icons.camera_alt, 'Instagram', _user!.instagram!),
                         if (_user!.telegram != null)
                           _socialTile(Icons.send, 'Telegram', _user!.telegram!),
                         if (_user!.twitter != null)
@@ -287,17 +260,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _socialTile(Icons.work, 'LinkedIn', _user!.linkedin!),
                         const Divider(),
                       ],
-                      // Действия
                       ListTile(
                         leading: const Icon(Icons.edit),
                         title: const Text('Редактировать профиль'),
+                        trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: Экран редактирования
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Скоро будет доступно')),
+                          );
                         },
                       ),
                       ListTile(
                         leading: const Icon(Icons.card_giftcard_outlined),
                         title: const Text('Мои подарки'),
+                        trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.pushNamed(context, '/gifts');
                         },
@@ -305,10 +281,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ListTile(
                         leading: const Icon(Icons.emoji_emotions_outlined),
                         title: const Text('Стикеры'),
+                        trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Скоро будет доступно')),
-                          );
+                          Navigator.pushNamed(context, '/stickers');
                         },
                       ),
                       const Divider(),
@@ -334,7 +309,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       subtitle: Text(value),
       trailing: const Icon(Icons.open_in_new, size: 16),
       onTap: () {
-        // TODO: Открыть ссылку
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Открытие ссылок скоро будет доступно')),
+        );
       },
     );
   }

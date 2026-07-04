@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'web_view_screen.dart';
 import '../services/auth_service.dart';
-import 'login_screen.dart';
+import '../widgets/app_scaffold.dart';
+import 'web_view_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -35,15 +35,9 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Настройки'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: ListView(
+    return AppScaffold(
+      title: 'Настройки',
+      child: ListView(
         children: [
           ListTile(
             leading: const Icon(Icons.person_outline),
@@ -66,9 +60,10 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.palette_outlined),
             title: const Text('Тема оформления'),
+            subtitle: const Text('Светлая'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Выбор темы
+              _showThemeDialog(context);
             },
           ),
           const Divider(),
@@ -77,7 +72,9 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('Уведомления'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Настройки уведомлений
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Скоро будет доступно')),
+              );
             },
           ),
           const Divider(),
@@ -87,7 +84,9 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text('Русский'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Выбор языка
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Скоро будет доступно')),
+              );
             },
           ),
           const Divider(),
@@ -99,7 +98,7 @@ class SettingsScreen extends StatelessWidget {
               showAboutDialog(
                 context: context,
                 applicationName: 'Плюс Чат',
-                applicationVersion: '1.0.0',
+                applicationVersion: '1.0.1',
                 applicationLegalese: '© 2026 PlusChat Team',
               );
             },
@@ -146,6 +145,49 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
+
+  void _showThemeDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Выбор темы'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile(
+              title: const Text('Светлая'),
+              value: 'light',
+              groupValue: 'light',
+              onChanged: (v) => Navigator.pop(ctx),
+            ),
+            RadioListTile(
+              title: const Text('Тёмная'),
+              value: 'dark',
+              groupValue: 'light',
+              onChanged: (v) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Тёмная тема скоро будет доступна')),
+                );
+              },
+            ),
+            RadioListTile(
+              title: const Text('Системная'),
+              value: 'system',
+              groupValue: 'light',
+              onChanged: (v) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Скоро будет доступно')),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   static const String _privacyText = '''
 ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ
 

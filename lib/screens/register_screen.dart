@@ -177,7 +177,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Регистрация'),
+        title: const Text('Регистрация'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -185,7 +185,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       body: Column(
         children: [
-          // Индикатор шагов
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Row(
@@ -214,8 +213,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             style: TextStyle(color: Colors.grey[600], fontSize: 12),
           ),
           const SizedBox(height: 8),
-
-          // Страницы
           Expanded(
             child: PageView(
               controller: _pageController,
@@ -234,7 +231,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ===== ШАГ 1: EMAIL =====
   Widget _buildEmailStep() {
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -290,7 +286,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ===== ШАГ 2: ПОДТВЕРЖДЕНИЕ КОДА =====
   Widget _buildVerifyStep() {
     return VerifyScreen(
       email: _emailController.text.trim(),
@@ -300,7 +295,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ===== ШАГ 3: ИМЯ И ФАМИЛИЯ =====
   Widget _buildNameStep() {
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -345,7 +339,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ===== ШАГ 4: USERNAME =====
   Widget _buildUsernameStep() {
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -406,7 +399,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ===== ШАГ 5: ПАРОЛЬ =====
   Widget _buildPasswordStep() {
     return Padding(
       padding: const EdgeInsets.all(24),

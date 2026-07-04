@@ -27,8 +27,6 @@ class User {
   final int giftsSentCount;
   final int totalGiftsValue;
   final String? createdAt;
-
-  // Социальные сети
   final String? website;
   final String? instagram;
   final String? telegram;
@@ -75,34 +73,42 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       email: json['email'],
       username: json['username'],
-      firstName: json['first_name'] ?? '',
-      lastName: json['last_name'],
-      middleName: json['middle_name'],
+      firstName: json['first_name'] ?? json['firstName'] ?? '',
+      lastName: json['last_name'] ?? json['lastName'],
+      middleName: json['middle_name'] ?? json['middleName'],
       nickname: json['nickname'],
       bio: json['bio'],
-      birthDate: json['birth_date'],
-      avatarUrl: json['avatar_url'],
-      avatarThumbUrl: json['avatar_thumb_url'],
-      avatarColor: json['avatar_color'],
-      avatarEmoji: json['avatar_emoji'],
-      bannerUrl: json['banner_url'],
+      birthDate: json['birth_date'] ?? json['birthDate'],
+      avatarUrl: json['avatar_url'] ?? json['avatarUrl'],
+      avatarThumbUrl: json['avatar_thumb_url'] ?? json['avatarThumbUrl'],
+      avatarColor: json['avatar_color'] ?? json['avatarColor'],
+      avatarEmoji: json['avatar_emoji'] ?? json['avatarEmoji'],
+      bannerUrl: json['banner_url'] ?? json['bannerUrl'],
       country: json['country'],
       city: json['city'],
       timezone: json['timezone'],
       language: json['language'],
-      onlineStatus: json['online_status'] ?? 'offline',
-      lastSeen: json['last_seen'],
-      customStatusText: json['custom_status_text'],
-      customStatusEmoji: json['custom_status_emoji'],
-      premiumStatus: json['premium_status'] ?? 'free',
-      plusCoins: json['plus_coins'] ?? 0,
-      giftsReceivedCount: json['gifts_received_count'] ?? 0,
-      giftsSentCount: json['gifts_sent_count'] ?? 0,
-      totalGiftsValue: json['total_gifts_value'] ?? 0,
-      createdAt: json['created_at'],
+      onlineStatus: json['online_status'] ?? json['is_online'] == true ? 'online' : 'offline',
+      lastSeen: json['last_seen'] ?? json['lastSeen'],
+      customStatusText: json['custom_status_text'] ?? json['customStatusText'],
+      customStatusEmoji: json['custom_status_emoji'] ?? json['customStatusEmoji'],
+      premiumStatus: json['premium_status'] ?? json['is_premium'] == true ? 'premium' : 'free',
+      plusCoins: (json['plus_coins'] ?? json['plusCoins'] ?? 0) is int
+          ? json['plus_coins'] ?? json['plusCoins'] ?? 0
+          : int.tryParse((json['plus_coins'] ?? json['plusCoins'] ?? 0).toString()) ?? 0,
+      giftsReceivedCount: (json['gifts_received_count'] ?? json['giftsReceivedCount'] ?? 0) is int
+          ? json['gifts_received_count'] ?? json['giftsReceivedCount'] ?? 0
+          : int.tryParse((json['gifts_received_count'] ?? json['giftsReceivedCount'] ?? 0).toString()) ?? 0,
+      giftsSentCount: (json['gifts_sent_count'] ?? json['giftsSentCount'] ?? 0) is int
+          ? json['gifts_sent_count'] ?? json['giftsSentCount'] ?? 0
+          : int.tryParse((json['gifts_sent_count'] ?? json['giftsSentCount'] ?? 0).toString()) ?? 0,
+      totalGiftsValue: (json['total_gifts_value'] ?? json['totalGiftsValue'] ?? 0) is int
+          ? json['total_gifts_value'] ?? json['totalGiftsValue'] ?? 0
+          : int.tryParse((json['total_gifts_value'] ?? json['totalGiftsValue'] ?? 0).toString()) ?? 0,
+      createdAt: json['created_at'] ?? json['createdAt'],
       website: json['website'],
       instagram: json['instagram'],
       telegram: json['telegram'],
@@ -151,23 +157,18 @@ class User {
     };
   }
 
-  // Отображаемое имя
   String get displayName {
     final parts = [firstName, lastName].where((p) => p != null && p.isNotEmpty);
     return parts.isEmpty ? (username ?? 'Пользователь') : parts.join(' ');
   }
 
-  // Инициалы для аватара
   String get initials {
     final first = firstName.isNotEmpty ? firstName[0].toUpperCase() : '';
     final last = (lastName?.isNotEmpty ?? false) ? lastName![0].toUpperCase() : '';
     return (first + last).isEmpty ? '?' : first + last;
   }
 
-  // Онлайн ли сейчас
   bool get isOnline => onlineStatus == 'online';
-
-  // Премиум ли
   bool get isPremium => premiumStatus != 'free';
 
   User copyWith({
@@ -191,7 +192,6 @@ class User {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       onlineStatus: onlineStatus ?? this.onlineStatus,
       plusCoins: plusCoins ?? this.plusCoins,
-      // остальные поля оставляем
       middleName: middleName,
       nickname: nickname,
       birthDate: birthDate,

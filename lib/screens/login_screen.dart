@@ -29,7 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       if (_useCodeLogin) {
-        // Вход по коду
         final response = await ApiService.loginWithCodeRequest(
           identifier: _identifierController.text.trim(),
         );
@@ -57,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } else {
-        // Вход по паролю
         final response = await ApiService.login(
           identifier: _identifierController.text.trim(),
           password: _passwordController.text,
@@ -99,22 +97,31 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Вход'),
-      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 40),
-              const Icon(Icons.chat_bubble, size: 80, color: Colors.green),
+              const SizedBox(height: 60),
+              const Icon(Icons.chat_bubble, size: 80, color: Color(0xFF075E54)),
               const SizedBox(height: 20),
               Text(
                 'Плюс Чат',
-                style: Theme.of(context).textTheme.headlineLarge,
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF075E54),
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Современный мессенджер',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 40),
@@ -123,7 +130,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Email или Username',
                   border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
                 ),
+                keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Введите email или username';
@@ -138,6 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Пароль',
                     border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock),
                   ),
                   obscureText: true,
                   validator: (value) {
@@ -149,13 +159,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
               const SizedBox(height: 24),
-              ElevatedButton(
+              FilledButton(
                 onPressed: _isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(
+                style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  minimumSize: const Size.fromHeight(50),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator()
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Text('Войти', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 16),
@@ -170,12 +185,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   _useCodeLogin
                       ? 'Войти по паролю'
                       : 'Войти по коду из почты',
+                  style: const TextStyle(fontSize: 15),
                 ),
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.pushNamed(context, '/register'),
-                child: const Text('Нет аккаунта? Зарегистрироваться'),
+                child: const Text(
+                  'Нет аккаунта? Зарегистрироваться',
+                  style: TextStyle(fontSize: 15),
+                ),
               ),
             ],
           ),

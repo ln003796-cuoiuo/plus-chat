@@ -7,14 +7,14 @@ class AppScaffold extends StatefulWidget {
   final String title;
   final Widget child;
   final List<Widget>? actions;
-  final bool showBackButton;
+  final PreferredSizeWidget? bottom;
 
   const AppScaffold({
     super.key,
     required this.title,
     required this.child,
     this.actions,
-    this.showBackButton = false,
+    this.bottom,
   });
 
   @override
@@ -76,6 +76,7 @@ class _AppScaffoldState extends State<AppScaffold> {
           ),
         ),
         actions: widget.actions,
+        bottom: widget.bottom,
       ),
       drawer: _buildDrawer(),
       body: widget.child,
@@ -87,7 +88,6 @@ class _AppScaffoldState extends State<AppScaffold> {
       child: SafeArea(
         child: Column(
           children: [
-            // Шапка с аватаром
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -208,7 +208,6 @@ class _AppScaffoldState extends State<AppScaffold> {
               ),
             ),
             const Divider(),
-            // Меню
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),

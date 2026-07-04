@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 
 class VerifyScreen extends StatefulWidget {
   final String email;
-  final String type; // 'registration' или 'login'
+  final String type;
   final void Function(String)? onVerified;
   final VoidCallback? onBack;
 
@@ -65,11 +65,9 @@ class _VerifyScreenState extends State<VerifyScreen> {
       );
 
       if (response['success'] == true) {
-        // Если передан callback — вызываем его (для регистрации)
         if (widget.onVerified != null) {
           widget.onVerified!(code);
         } else if (mounted) {
-          // Иначе — переходим на главный экран (для входа)
           Navigator.pushNamedAndRemoveUntil(
             context,
             '/home',

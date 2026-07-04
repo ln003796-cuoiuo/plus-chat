@@ -31,35 +31,51 @@ class ChatTile extends StatelessWidget {
         child: Row(
           children: [
             // Аватар
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: chat.type == ChatType.private
-                  ? Colors.blue
-                  : chat.type == ChatType.group
-                      ? Colors.green
-                      : Colors.orange,
-              backgroundImage: chat.avatarUrl != null
-                  ? NetworkImage(chat.avatarUrl!)
-                  : null,
-              child: chat.avatarUrl == null
-                  ? Text(
-                      chat.initial,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: chat.type == 'private'
+                      ? Colors.blue
+                      : chat.type == 'group'
+                          ? Colors.green
+                          : Colors.orange,
+                  backgroundImage: chat.avatarUrl != null
+                      ? NetworkImage(chat.avatarUrl!)
+                      : null,
+                  child: chat.avatarUrl == null
+                      ? Text(
+                          chat.initial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
+                ),
+                if (chat.type == 'private' && chat.isOnline)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
                       ),
-                    )
-                  : null,
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 12),
-
             // Информация
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Имя и время
                   Row(
                     children: [
                       Expanded(
@@ -86,11 +102,8 @@ class ChatTile extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-
-                  // Последнее сообщение и счётчик
                   Row(
                     children: [
-                      // Индикатор заглушенного чата
                       if (chat.isMuted)
                         Padding(
                           padding: const EdgeInsets.only(right: 4),
@@ -100,8 +113,6 @@ class ChatTile extends StatelessWidget {
                             color: Colors.grey[600],
                           ),
                         ),
-
-                      // Текст последнего сообщения
                       Expanded(
                         child: Text(
                           chat.lastMessage ?? 'Нет сообщений',
@@ -113,10 +124,7 @@ class ChatTile extends StatelessWidget {
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 8),
-
-                      // Счётчик непрочитанных
                       if (chat.unreadCount > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(

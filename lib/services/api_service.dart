@@ -8,9 +8,6 @@ import '../models/message.dart';
 class ApiService {
   static const String baseUrl = 'https://xn--80avljg2a1c.xn--p1ai';
 
-  // ============================================
-  // БАЗОВЫЙ МЕТОД
-  // ============================================
   static Future<Map<String, dynamic>> _request(
     String method,
     String endpoint, {
@@ -32,7 +29,6 @@ class ApiService {
 
     try {
       http.Response response;
-
       switch (method.toUpperCase()) {
         case 'GET':
           response = await http.get(url, headers: headers);
@@ -78,8 +74,6 @@ class ApiService {
   // ============================================
   // АВТОРИЗАЦИЯ
   // ============================================
-
-  /// Регистрация
   static Future<Map<String, dynamic>> register({
     required String firstName,
     required String lastName,
@@ -98,26 +92,21 @@ class ApiService {
     });
   }
 
-  // ============================================
-  // ВХОД ПО ПАРОЛЮ (/login/login)
-  // ============================================
- static Future<Map<String, dynamic>> login({
-   required String identifier,
-   required String password,
- }) async {
-   final data = await _request('POST', '/login/login', auth: false, body: {
-     'type': 'password',
-     'identifier': identifier,
-     'password': password,
-   });
+  static Future<Map<String, dynamic>> login({
+    required String identifier,
+    required String password,
+  }) async {
+    final data = await _request('POST', '/login/login', auth: false, body: {
+      'type': 'password',
+      'identifier': identifier,
+      'password': password,
+    });
+    if (data['success'] == true && data['access_token'] != null) {
+      await _saveAuthData(data);
+    }
+    return data;
+  }
 
-   if (data['success'] == true && data['access_token'] != null) {
-     await _saveAuthData(data);
-   }
-   return data;
- }
-
-  /// Вход по коду (запрос кода)
   static Future<Map<String, dynamic>> loginWithCodeRequest({
     required String identifier,
   }) {
@@ -127,18 +116,35 @@ class ApiService {
     });
   }
 
-  /// Подтверждение email
+  static Future<Map<String, dynamic>> loginWithCodeVerify({
+    required String identifier,
+    required String code,
+  }) async {
+    final data = await _request('POST', '/login/login', auth: false, body: {
+      'type': 'code',
+      'identifier': identifier,
+      'code': code,
+    });
+    if (data['success'] == true && data['access_token'] != null) {
+      await _saveAuthData(data);
+    }
+    return data;
+  }
+
   static Future<Map<String, dynamic>> verifyEmail({
     required String email,
     required String code,
-  }) {
-    return _request('POST', '/login/verify', auth: false, body: {
+  }) async {
+    final data = await _request('POST', '/login/verify', auth: false, body: {
       'email': email,
       'code': code,
     });
+    if (data['success'] == true && data['access_token'] != null) {
+      await _saveAuthData(data);
+    }
+    return data;
   }
 
-  /// Повторная отправка кода
   static Future<Map<String, dynamic>> resendCode({
     required String email,
     required String type,
@@ -152,33 +158,26 @@ class ApiService {
   // ============================================
   // ПОЛЬЗОВАТЕЛЬ
   // ============================================
-
-  /// Получить текущего пользователя
-  /// Получить текущего пользователя
- static Future<User?> getMe() async {
-   final userId = await AuthService.getUserId();
-   final email = await AuthService.getEmail();
-   final username = await AuthService.getUsername();
-   final firstName = await AuthService.getFirstName();
-   final lastName = await AuthService.getLastName();
-   
-   if (userId == null) return null;
-   
-   return User(
-     id: userId,
-     email: email,
-     username: username,
-     firstName: firstName ?? 'Пользователь',
-     lastName: lastName,
-   );
- }
-
-  /// Проверка доступности username
-  static Future<Map<String, dynamic>> checkUsername(String username) {
-    return _request('GET', '/user/check-username?username=$username', auth: false);
+  static Future<User?> getMe() async {
+    final data = await _request('GET', '/user/me');
+    if (data['success'] == true && data['user'] != null) {
+      return User.fromJson(data['user']);
+    }
+    final userId = await AuthService.getUserId();
+    if (userId == null) return null;
+    return User(
+      id: userId,
+      email: await AuthService.getEmail(),
+      username: await AuthService.getUsername(),
+      firstName: await AuthService.getFirstName() ?? 'Пользователь',
+      lastName: await AuthService.getLastName(),
+    );
   }
 
-  /// Первоначальная настройка профиля
+  static Future<Map<String, dynamic>> checkUsername(String username) {
+    return _request('GET', '/user/username?username=$username', auth: false);
+  }
+
   static Future<Map<String, dynamic>> setupProfile({
     required String username,
     required String firstName,
@@ -200,12 +199,10 @@ class ApiService {
     return data;
   }
 
-  /// Обновить настройки пользователя
   static Future<Map<String, dynamic>> updateSettings(Map<String, dynamic> settings) {
     return _request('PUT', '/user/settings', body: settings);
   }
 
-  /// Получить профиль другого пользователя
   static Future<User?> getUserProfile(String userId) async {
     final data = await _request('GET', '/user/profile?user_id=$userId');
     if (data['success'] == true && data['user'] != null) {
@@ -214,9 +211,8 @@ class ApiService {
     return null;
   }
 
-  /// Поиск пользователей
-  static Future<List<User>> searchUsers(String query) async {
-    final data = await _request('GET', '/user/search?q=$query');
+  static Future<List<User>> searchUsers(String query, {String type = 'all'}) async {
+    final data = await _request('GET', '/user/search?q=$query&type=$type');
     if (data['success'] == true && data['users'] != null) {
       return (data['users'] as List)
           .map((u) => User.fromJson(u))
@@ -225,7 +221,27 @@ class ApiService {
     return [];
   }
 
-  /// Heartbeat онлайн
+  static Future<List<User>> searchUsersByName({
+    String? firstName,
+    String? lastName,
+    String? middleName,
+  }) async {
+    var url = '/user/search-by-name?';
+    final params = <String>[];
+    if (firstName != null) params.add('first_name=$firstName');
+    if (lastName != null) params.add('last_name=$lastName');
+    if (middleName != null) params.add('middle_name=$middleName');
+    url += params.join('&');
+    
+    final data = await _request('GET', url);
+    if (data['success'] == true && data['users'] != null) {
+      return (data['users'] as List)
+          .map((u) => User.fromJson(u))
+          .toList();
+    }
+    return [];
+  }
+
   static Future<void> sendHeartbeat() async {
     await _request('POST', '/user/online');
   }
@@ -233,8 +249,6 @@ class ApiService {
   // ============================================
   // ЧАТЫ
   // ============================================
-
-  /// Получить список чатов
   static Future<List<Chat>> getChats({
     bool archived = false,
     bool favorites = false,
@@ -256,7 +270,6 @@ class ApiService {
     return [];
   }
 
-  /// Создать чат
   static Future<Map<String, dynamic>> createChat({
     required String type,
     String? title,
@@ -273,12 +286,14 @@ class ApiService {
     });
   }
 
-  /// Информация о чате
   static Future<Map<String, dynamic>> getChatInfo(String chatId) {
     return _request('GET', '/chats/info?chat_id=$chatId');
   }
 
-  /// Подписаться на чат
+  static Future<Map<String, dynamic>> findPrivateChat(String userId) {
+    return _request('GET', '/chats/find-private?user_id=$userId');
+  }
+
   static Future<Map<String, dynamic>> joinChat(String chatId, {String? inviteCode}) {
     return _request('POST', '/chats/join', body: {
       'chat_id': chatId,
@@ -286,27 +301,22 @@ class ApiService {
     });
   }
 
-  /// Выйти из чата
   static Future<Map<String, dynamic>> leaveChat(String chatId) {
     return _request('POST', '/chats/leave', body: {'chat_id': chatId});
   }
 
-  /// Удалить чат
   static Future<Map<String, dynamic>> deleteChat(String chatId) {
     return _request('DELETE', '/chats/delete', body: {'chat_id': chatId});
   }
 
-  /// Обновить информацию о чате
   static Future<Map<String, dynamic>> updateChatInfo(String chatId, Map<String, dynamic> data) {
     return _request('PUT', '/chats/update', body: {'chat_id': chatId, ...data});
   }
 
-  /// Обновить настройки чата
   static Future<Map<String, dynamic>> updateChatSettings(String chatId, Map<String, dynamic> data) {
     return _request('PUT', '/chats/settings', body: {'chat_id': chatId, ...data});
   }
 
-  /// Получить участников чата
   static Future<List<Map<String, dynamic>>> getChatMembers(String chatId) async {
     final data = await _request('GET', '/chats/members?chat_id=$chatId');
     if (data['success'] == true && data['members'] != null) {
@@ -315,7 +325,6 @@ class ApiService {
     return [];
   }
 
-  /// Добавить участников
   static Future<Map<String, dynamic>> addMembers(String chatId, List<String> memberIds) {
     return _request('POST', '/chats/add-members', body: {
       'chat_id': chatId,
@@ -323,7 +332,6 @@ class ApiService {
     });
   }
 
-  /// Удалить участника
   static Future<Map<String, dynamic>> removeMember(String chatId, String userId) {
     return _request('POST', '/chats/remove-member', body: {
       'chat_id': chatId,
@@ -331,12 +339,10 @@ class ApiService {
     });
   }
 
-  /// Создать ссылку-приглашение
   static Future<Map<String, dynamic>> createInviteLink(String chatId) {
     return _request('POST', '/chats/invite', body: {'chat_id': chatId});
   }
 
-  // Действия с чатами
   static Future<Map<String, dynamic>> archiveChats(List<String> chatIds) {
     return _request('POST', '/chats/actions/archive', body: {'chat_ids': chatIds});
   }
@@ -368,18 +374,9 @@ class ApiService {
     return _request('POST', '/chats/actions/mark-read', body: {'chat_ids': chatIds});
   }
 
-  static Future<Map<String, dynamic>> muteChat(String chatId, {int duration = 0}) {
-   return muteChats([chatId], duration: duration);
- }
-
-  static Future<Map<String, dynamic>> unmuteChat(String chatId) {
-   return unmuteChats([chatId]);
- }
   // ============================================
   // СООБЩЕНИЯ
   // ============================================
-
-  /// Получить историю сообщений
   static Future<List<Message>> getMessages(String chatId, {int limit = 50, int? before}) async {
     var endpoint = '/messages/list?chat_id=$chatId&limit=$limit';
     if (before != null) endpoint += '&before=$before';
@@ -393,7 +390,6 @@ class ApiService {
     return [];
   }
 
-  /// Отправить текстовое сообщение
   static Future<Map<String, dynamic>> sendMessage({
     required String chatId,
     required String content,
@@ -409,7 +405,6 @@ class ApiService {
     return _request('POST', '/messages/send', body: body);
   }
 
-  /// Редактировать сообщение
   static Future<Map<String, dynamic>> editMessage(int messageId, String newContent) {
     return _request('PUT', '/messages/edit', body: {
       'message_id': messageId,
@@ -417,7 +412,6 @@ class ApiService {
     });
   }
 
-  /// Удалить сообщение
   static Future<Map<String, dynamic>> deleteMessage(int messageId, {bool forAll = false}) {
     return _request('DELETE', '/messages/delete', body: {
       'message_id': messageId,
@@ -425,17 +419,17 @@ class ApiService {
     });
   }
 
-  /// Пометить как прочитанное
   static Future<Map<String, dynamic>> markAsRead(int messageId) {
     return _request('PUT', '/messages/read', body: {'message_id': messageId});
   }
 
-  /// Реакция на сообщение
   static Future<Map<String, dynamic>> reactToMessage(int messageId, String emoji) {
-    return _request('POST', '/messages/$messageId/react', body: {'emoji': emoji});
+    return _request('POST', '/messages/react', body: {
+      'message_id': messageId,
+      'emoji': emoji,
+    });
   }
 
-  /// Закрепить сообщение
   static Future<Map<String, dynamic>> pinMessage(int messageId, String chatId, {bool unpin = false}) {
     return _request('PUT', '/messages/pin', body: {
       'message_id': messageId,
@@ -444,7 +438,6 @@ class ApiService {
     });
   }
 
-  /// Отправить GIF
   static Future<Map<String, dynamic>> sendGif({
     required String chatId,
     required String gifUrl,
@@ -464,7 +457,6 @@ class ApiService {
     return _request('POST', '/messages/send-gif', body: body);
   }
 
-  /// Отправить стикер
   static Future<Map<String, dynamic>> sendSticker({
     required String chatId,
     required String stickerUrl,
@@ -482,7 +474,6 @@ class ApiService {
     return _request('POST', '/messages/send-sticker', body: body);
   }
 
-  /// Статус "печатает"
   static Future<Map<String, dynamic>> sendTypingStatus(String chatId, bool isTyping) {
     return _request('POST', '/messages/typing', body: {
       'chat_id': chatId,
@@ -490,13 +481,30 @@ class ApiService {
     });
   }
 
+  static Future<List<Message>> searchMessages(String chatId, String query) async {
+    final data = await _request('GET', '/messages/search?chat_id=$chatId&q=$query');
+    if (data['success'] == true && data['messages'] != null) {
+      return (data['messages'] as List)
+          .map((m) => Message.fromJson(m))
+          .toList();
+    }
+    return [];
+  }
+
+  static Future<Map<String, dynamic>> forwardMessage(int messageId, String targetChatId) {
+    return _request('POST', '/messages/forward', body: {
+      'message_id': messageId,
+      'target_chat_id': targetChatId,
+    });
+  }
+
   // ============================================
   // ДРУЗЬЯ
   // ============================================
-
-  /// Список друзей
-  static Future<List<User>> getFriends({int limit = 50}) async {
-    final data = await _request('GET', '/friends/list?limit=$limit');
+  static Future<List<User>> getFriends({int limit = 50, String? q}) async {
+    var url = '/friends/list?limit=$limit';
+    if (q != null) url += '&q=$q';
+    final data = await _request('GET', url);
     if (data['success'] == true && data['friends'] != null) {
       return (data['friends'] as List)
           .map((f) => User.fromJson(f))
@@ -505,14 +513,15 @@ class ApiService {
     return [];
   }
 
-  /// Запросы в друзья
   static Future<Map<String, dynamic>> getFriendRequests() {
     return _request('GET', '/friends/requests?type=all');
   }
 
-  /// Список контактов
-  static Future<List<User>> getContacts({int limit = 50}) async {
-    final data = await _request('GET', '/friends/contacts/list?limit=$limit');
+  static Future<List<User>> getContacts({int limit = 50, String? q, String? filter}) async {
+    var url = '/friends/contacts/list?limit=$limit';
+    if (q != null) url += '&q=$q';
+    if (filter != null) url += '&filter=$filter';
+    final data = await _request('GET', url);
     if (data['success'] == true && data['contacts'] != null) {
       return (data['contacts'] as List)
           .map((c) => User.fromJson(c))
@@ -521,7 +530,6 @@ class ApiService {
     return [];
   }
 
-  /// Отправить запрос в друзья
   static Future<Map<String, dynamic>> sendFriendRequest(String userId, {String? message}) {
     return _request('POST', '/friends/request', body: {
       'user_id': userId,
@@ -529,41 +537,34 @@ class ApiService {
     });
   }
 
-  /// Принять запрос
   static Future<Map<String, dynamic>> acceptFriendRequest(String requestId) {
     return _request('POST', '/friends/accept', body: {'request_id': requestId});
   }
 
-  /// Отклонить запрос
   static Future<Map<String, dynamic>> rejectFriendRequest(String requestId) {
     return _request('POST', '/friends/reject', body: {'request_id': requestId});
   }
 
-  /// Отменить свой запрос
   static Future<Map<String, dynamic>> cancelFriendRequest(String userId) {
     return _request('POST', '/friends/cancel', body: {'user_id': userId});
   }
 
-  /// Удалить из друзей
   static Future<Map<String, dynamic>> removeFriend(String userId) {
     return _request('POST', '/friends/remove', body: {'user_id': userId});
   }
 
-  /// Статус дружбы
   static Future<Map<String, dynamic>> getFriendStatus(String userId) async {
     final data = await _request('GET', '/friends/status?user_id=$userId');
     if (data['success'] == true) return data;
     return {'friendship_status': 'none'};
   }
 
-  /// Счётчики
   static Future<Map<String, dynamic>> getFriendsCount() async {
     final data = await _request('GET', '/friends/count');
     if (data['success'] == true) return data;
     return {'friends': 0, 'incoming_requests': 0, 'outgoing_requests': 0, 'contacts': 0};
   }
 
-  /// Рекомендации
   static Future<List<User>> getFriendSuggestions({int limit = 20}) async {
     final data = await _request('GET', '/friends/suggestions?limit=$limit');
     if (data['success'] == true && data['suggestions'] != null) {
@@ -574,21 +575,17 @@ class ApiService {
     return [];
   }
 
-  /// Заблокировать
   static Future<Map<String, dynamic>> blockUser(String userId) {
     return _request('POST', '/friends/contacts/block', body: {'user_id': userId});
   }
 
-  /// Разблокировать
   static Future<Map<String, dynamic>> unblockUser(String userId) {
     return _request('POST', '/friends/contacts/unblock', body: {'user_id': userId});
   }
 
   // ============================================
-  // GIF (GIPHY)
+  // GIF
   // ============================================
-
-  /// Трендовые GIF
   static Future<List<Map<String, dynamic>>> getTrendingGifs({int limit = 25}) async {
     final data = await _request('GET', '/gifs/trending?limit=$limit');
     if (data['success'] == true && data['gifs'] != null) {
@@ -597,9 +594,8 @@ class ApiService {
     return [];
   }
 
-  /// Поиск GIF
   static Future<List<Map<String, dynamic>>> searchGifs(String query, {int limit = 25}) async {
-    final data = await _request('GET', '/gifs/search?q=${Uri.encodeComponent(query)}&limit=$limit');
+    final data = await _request('GET', '/gifs/search?q=$query&limit=$limit');
     if (data['success'] == true && data['gifs'] != null) {
       return (data['gifs'] as List).cast<Map<String, dynamic>>();
     }
@@ -609,8 +605,6 @@ class ApiService {
   // ============================================
   // СТИКЕРЫ
   // ============================================
-
-  /// Список паков стикеров
   static Future<List<Map<String, dynamic>>> getStickerPacks() async {
     final data = await _request('GET', '/stickers/packs');
     if (data['success'] == true && data['packs'] != null) {
@@ -619,14 +613,12 @@ class ApiService {
     return [];
   }
 
-  /// Содержимое пака
   static Future<Map<String, dynamic>> getStickerPack(int packId) async {
     final data = await _request('GET', '/stickers/pack?id=$packId');
     if (data['success'] == true) return data;
     return {'pack': null, 'stickers': []};
   }
 
-  /// Установленные паки
   static Future<List<Map<String, dynamic>>> getInstalledPacks() async {
     final data = await _request('GET', '/stickers/installed');
     if (data['success'] == true && data['packs'] != null) {
@@ -635,12 +627,10 @@ class ApiService {
     return [];
   }
 
-  /// Установить пак
   static Future<Map<String, dynamic>> installPack(int packId) {
     return _request('POST', '/stickers/install', body: {'pack_id': packId});
   }
 
-  /// Удалить пак
   static Future<Map<String, dynamic>> uninstallPack(int packId) {
     return _request('POST', '/stickers/uninstall', body: {'pack_id': packId});
   }
@@ -648,8 +638,6 @@ class ApiService {
   // ============================================
   // ПОДАРКИ
   // ============================================
-
-  /// Список подарков
   static Future<List<Map<String, dynamic>>> getGifts({String? category, String sort = 'popular'}) async {
     var url = '/gifts/list?sort=$sort';
     if (category != null) url += '&category=$category';
@@ -660,7 +648,6 @@ class ApiService {
     return [];
   }
 
-  /// Категории подарков
   static Future<List<Map<String, dynamic>>> getGiftCategories() async {
     final data = await _request('GET', '/gifts/categories');
     if (data['success'] == true && data['categories'] != null) {
@@ -669,7 +656,6 @@ class ApiService {
     return [];
   }
 
-  /// Отправить подарок
   static Future<Map<String, dynamic>> sendGift({
     required int giftId,
     required String receiverId,
@@ -685,7 +671,6 @@ class ApiService {
     return _request('POST', '/gifts/send', body: body);
   }
 
-  /// Полученные подарки
   static Future<List<Map<String, dynamic>>> getReceivedGifts() async {
     final data = await _request('GET', '/gifts/received');
     if (data['success'] == true && data['gifts'] != null) {
@@ -694,7 +679,6 @@ class ApiService {
     return [];
   }
 
-  /// Отправленные подарки
   static Future<List<Map<String, dynamic>>> getSentGifts() async {
     final data = await _request('GET', '/gifts/sent');
     if (data['success'] == true && data['gifts'] != null) {
@@ -704,13 +688,15 @@ class ApiService {
   }
 
   // ============================================
-  // ВСПОМОГАТЕЛЬНЫЙ МЕТОД
+  // ВСПОМОГАТЕЛЬНЫЙ
   // ============================================
   static Future<void> _saveAuthData(Map<String, dynamic> data) async {
-    await AuthService.saveTokens(
-      data['access_token']?.toString() ?? '',
-      data['refresh_token']?.toString() ?? '',
-    );
+    if (data['access_token'] != null) {
+      await AuthService.saveTokens(
+        data['access_token'].toString(),
+        data['refresh_token']?.toString() ?? '',
+      );
+    }
     if (data['user'] != null) {
       final user = data['user'];
       if (user['id'] != null) {

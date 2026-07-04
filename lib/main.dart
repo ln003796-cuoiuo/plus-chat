@@ -12,8 +12,10 @@ import 'screens/chat_screen.dart';
 import 'screens/gifts_screen.dart';
 import 'screens/archived_chats_screen.dart';
 import 'screens/change_password_screen.dart';
-import 'screens/web_view_screen.dart';
+import 'screens/user_profile_screen.dart';
+import 'screens/search_chats_screen.dart';
 import 'services/auth_service.dart';
+import 'services/update_service.dart';
 import 'models/chat.dart';
 
 void main() {
@@ -46,11 +48,12 @@ class PlusChatApp extends StatelessWidget {
         '/friends': (context) => const FriendsScreen(),
         '/contacts': (context) => const ContactsScreen(),
         '/search': (context) => const SearchScreen(),
+        '/profile': (context) => const ProfileScreen(),
+        '/settings': (context) => const SettingsScreen(),
         '/gifts': (context) => const GiftsScreen(),
         '/archived': (context) => const ArchivedChatsScreen(),
         '/change-password': (context) => const ChangePasswordScreen(),
-        '/profile': (context) => const ProfileScreen(),
-        '/settings': (context) => const SettingsScreen(),
+        '/search-chats': (context) => const SearchChatsScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/verify') {
@@ -68,6 +71,14 @@ class PlusChatApp extends StatelessWidget {
             builder: (context) => ChatScreen(chat: chat),
           );
         }
+        if (settings.name == '/user-profile') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (context) => UserProfileScreen(
+              userId: args['userId'] as String,
+            ),
+          );
+        }
         return null;
       },
       home: const AuthWrapper(),
@@ -75,8 +86,28 @@ class PlusChatApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    _checkUpdate();
+  }
+
+  Future<void> _checkUpdate() async {
+    // Проверяем обновления в фоне
+    UpdateService.checkForUpdate().then((info) {
+      if (info != null && info.needsUpdate && mounted) {
+        UpdateService.showUpdateDialog(context, info);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
