@@ -5,6 +5,8 @@ import '../services/auth_service.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
 import '../widgets/message_bubble.dart';
+import '../widgets/app_scaffold.dart';
+import 'chat_info_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final Chat chat;
@@ -17,11 +19,8 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  final _focusNode = FocusNode();
-
   List<Message> _messages = [];
   bool _loading = true;
-  bool _sending = false;
   String? _myUserId;
   Timer? _pollTimer;
   Message? _replyTo;
@@ -35,7 +34,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _init() async {
     _myUserId = await AuthService.getUserId();
     await _loadMessages();
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) _loadMessages(silent: true);
     });
   }
@@ -78,136 +77,99 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     _controller.clear();
+
+    final tempMessage = Message(
+      id: -DateTime.now().millisecondsSinceEpoch,
+      chatId: widget.chat.id,
+      senderId: _myUserId ?? '',
+      type: MessageType.text,
+      content: text,
+      createdAt: DateTime.now().toIso8601String(),
+    );
+
     setState(() {
-      _sending = true;
+      _messages.add(tempMessage);
       _replyTo = null;
     });
+    _scrollToBottom();
+
     try {
-      final message = await ApiService.sendMessage(
+      final result = await ApiService.sendMessage(
         chatId: widget.chat.id,
         content: text,
         replyTo: _replyTo?.id.toString(),
       );
-      if (message != null) {
-        await _loadMessages(silent: true);
-        _scrollToBottom();
+      if (result['success'] == true) {
+        await _loadMessages();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка отправки: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Ошибка отправки: $e')),
         );
       }
-    } finally {
-      if (mounted) setState(() => _sending = false);
     }
-  }
-
-  void _setReply(Message message) {
-    setState(() => _replyTo = message);
-    _focusNode.requestFocus();
   }
 
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
-    _focusNode.dispose();
     _pollTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundImage: widget.chat.avatarUrl != null
-                  ? NetworkImage(widget.chat.avatarUrl!)
-                  : null,
-              child: widget.chat.avatarUrl == null
-                  ? Text(
-                      widget.chat.initial,
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 14),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.chat.displayName,
-                    style: const TextStyle(fontSize: 16),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    widget.chat.isCompanionOnline
-                        ? 'в сети'
-                        : 'был(а) недавно',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          // Кнопка mute/unmute для групп и каналов
-          if (widget.chat.type != ChatType.private)
-            IconButton(
-              icon: Icon(widget.chat.isMuted
-                  ? Icons.notifications_off
-                  : Icons.notifications),
-              onPressed: () async {
-                try {
-                  if (widget.chat.isMuted) {
-                    await ApiService.unmuteChats([widget.chat.id]);
-                  } else {
-                    await ApiService.muteChats([widget.chat.id]);
-                  }
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(widget.chat.isMuted
-                            ? 'Звук включён'
-                            : 'Звук выключен'),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Ошибка: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-            ),
+    return AppScaffold(
+      title: widget.chat.displayName,
+      actions: [
+        if (widget.chat.type != 'private')
           IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {
-              // TODO: Меню чата
+            icon: Icon(widget.chat.isMuted
+                ? Icons.notifications_off
+                : Icons.notifications),
+            onPressed: () async {
+              try {
+                if (widget.chat.isMuted) {
+                  await ApiService.unmuteChats([widget.chat.id]);
+                } else {
+                  await ApiService.muteChats([widget.chat.id]);
+                }
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(widget.chat.isMuted
+                          ? 'Звук включён'
+                          : 'Звук выключен'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Ошибка: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
           ),
-        ],
-      ),
-      body: Column(
+        IconButton(
+          icon: const Icon(Icons.more_vert),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChatInfoScreen(chat: widget.chat),
+              ),
+            );
+          },
+        ),
+      ],
+      child: Column(
         children: [
           Expanded(
             child: _loading
@@ -224,35 +186,22 @@ class _ChatScreenState extends State<ChatScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
-                          final msg = _messages[index];
-                          final isMe = msg.senderId == _myUserId;
-                          final showName = widget.chat.type != ChatType.private &&
-                              !isMe &&
-                              (index == 0 ||
-                                  _messages[index - 1].senderId !=
-                                      msg.senderId);
+                          final message = _messages[index];
+                          final isMe = message.senderId == _myUserId;
                           return MessageBubble(
-                            message: msg,
+                            message: message,
                             isMe: isMe,
-                            showSenderName: showName,
-                            onLongPress: () => _setReply(msg),
+                            showSenderName: widget.chat.type != 'private' && !isMe,
+                            onLongPress: () => _showMessageOptions(message),
                           );
                         },
                       ),
           ),
-          // Ответ на сообщение
+          // Reply preview
           if (_replyTo != null)
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant,
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(context).primaryColor,
-                    width: 3,
-                  ),
-                ),
-              ),
+              color: Colors.grey[100],
               child: Row(
                 children: [
                   Expanded(
@@ -260,10 +209,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _replyTo!.sender?.displayName ?? 'Пользователь',
+                          _replyTo!.sender?.displayName ?? 'Сообщение',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                             color: Theme.of(context).primaryColor,
                           ),
                         ),
@@ -271,74 +220,152 @@ class _ChatScreenState extends State<ChatScreen> {
                           _replyTo!.content,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13),
+                          style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, size: 20),
                     onPressed: () => setState(() => _replyTo = null),
                   ),
                 ],
               ),
             ),
-          // Поле ввода
+          // Input
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 5,
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),
               ],
             ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.attach_file),
-                    onPressed: () {
-                      // TODO: Вложения
-                    },
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      maxLines: null,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: InputDecoration(
-                        hintText: 'Сообщение...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.emoji_emotions_outlined),
+                  onPressed: () {
+                    // TODO: Открыть эмодзи-пикер
+                  },
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText: 'Сообщение...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
                       ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                     ),
+                    maxLines: 4,
+                    minLines: 1,
+                    onSubmitted: (_) => _send(),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _sending ? null : _send,
-                    icon: _sending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send_rounded),
-                    color: Theme.of(context).primaryColor,
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.attach_file),
+                  onPressed: () {
+                    // TODO: Прикрепить файл
+                  },
+                ),
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                    onPressed: _send,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMessageOptions(Message message) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (message.senderId == _myUserId)
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('Редактировать'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showEditDialog(message);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.reply),
+              title: const Text('Ответить'),
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _replyTo = message);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Копировать'),
+              onTap: () {
+                Navigator.pop(ctx);
+                // TODO: Копировать в буфер
+              },
+            ),
+            if (message.senderId == _myUserId)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Удалить',
+                    style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await ApiService.deleteMessage(message.id);
+                  _loadMessages();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditDialog(Message message) {
+    final controller = TextEditingController(text: message.content);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Редактировать сообщение'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newContent = controller.text.trim();
+              if (newContent.isNotEmpty && newContent != message.content) {
+                await ApiService.editMessage(message.id, newContent);
+                _loadMessages();
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Сохранить'),
           ),
         ],
       ),

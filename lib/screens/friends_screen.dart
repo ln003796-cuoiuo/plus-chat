@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
-import '../widgets/user_tile.dart';
+import '../widgets/app_scaffold.dart';
 import 'user_profile_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
@@ -57,29 +57,17 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Друзья'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => Navigator.pushNamed(context, '/search'),
-          ),
+    return AppScaffold(
+      title: 'Друзья',
+      bottom: TabBar(
+        controller: _tabController,
+        tabs: [
+          Tab(text: 'Друзья (${_friends.length})'),
+          Tab(text: 'Запросы (${_incomingRequests.length})'),
+          Tab(text: 'Контакты (${_contacts.length})'),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: 'Друзья (${_friends.length})'),
-            Tab(text: 'Запросы (${_incomingRequests.length})'),
-            Tab(text: 'Контакты (${_contacts.length})'),
-          ],
-        ),
       ),
-      body: _loading
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
@@ -117,8 +105,35 @@ class _FriendsScreenState extends State<FriendsScreen>
       itemCount: _friends.length,
       itemBuilder: (context, index) {
         final friend = _friends[index];
-        return UserTile(
-          user: friend,
+        return ListTile(
+          leading: Stack(
+            children: [
+              CircleAvatar(
+                backgroundImage: friend.avatarUrl != null
+                    ? NetworkImage(friend.avatarUrl!)
+                    : null,
+                child: friend.avatarUrl == null
+                    ? Text(friend.initials)
+                    : null,
+              ),
+              if (friend.isOnline)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          title: Text(friend.displayName),
+          subtitle: Text('@${friend.username ?? 'username'}'),
           onTap: () {
             Navigator.push(
               context,
@@ -234,12 +249,10 @@ class _FriendsScreenState extends State<FriendsScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.mail_outline,
-                      size: 64, color: Colors.grey[400]),
+                  Icon(Icons.mail_outline, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text('Нет запросов в друзья',
-                      style:
-                          TextStyle(color: Colors.grey[600], fontSize: 16)),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 16)),
                 ],
               ),
             ),
@@ -254,8 +267,7 @@ class _FriendsScreenState extends State<FriendsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.contacts_outlined,
-                size: 64, color: Colors.grey[400]),
+            Icon(Icons.contacts_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text('Список контактов пуст',
                 style: TextStyle(color: Colors.grey[600], fontSize: 16)),
@@ -268,8 +280,17 @@ class _FriendsScreenState extends State<FriendsScreen>
       itemCount: _contacts.length,
       itemBuilder: (context, index) {
         final contact = _contacts[index];
-        return UserTile(
-          user: contact,
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundImage: contact.avatarUrl != null
+                ? NetworkImage(contact.avatarUrl!)
+                : null,
+            child: contact.avatarUrl == null
+                ? Text(contact.initials)
+                : null,
+          ),
+          title: Text(contact.displayName),
+          subtitle: Text('@${contact.username ?? 'username'}'),
           onTap: () {
             Navigator.push(
               context,
