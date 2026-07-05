@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/chat.dart';
 import '../widgets/chat_tile.dart';
-import '../widgets/app_scaffold.dart';
 import 'chat_screen.dart';
 
 class SearchChatsScreen extends StatefulWidget {
@@ -42,24 +41,34 @@ class _SearchChatsScreenState extends State<SearchChatsScreen> {
     }
   }
 
-  void _onSearchChanged(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      _filterChats(query);
+      _filter(value);
     });
   }
 
-  void _filterChats(String query) {
+  void _filter(String query) {
     if (query.trim().isEmpty) {
       setState(() => _filteredChats = _allChats);
       return;
     }
+
     final q = query.toLowerCase();
     setState(() {
       _filteredChats = _allChats.where((chat) {
-        final name = chat.displayName.toLowerCase();
-        final lastMsg = (chat.lastMessage ?? '').toLowerCase();
-        return name.contains(q) || lastMsg.contains(q);
+        // ✅ Ищем по названию, имени собеседника, username, последнему сообщению
+        final title = (chat.title ?? '').toLowerCase();
+        final companionName = (chat.companionName ?? '').toLowerCase();
+        final companionUsername = (chat.companionUsername ?? '').toLowerCase();
+        final displayName = chat.displayName.toLowerCase();
+        final lastMessage = (chat.lastMessage ?? '').toLowerCase();
+
+        return title.contains(q) ||
+            companionName.contains(q) ||
+            companionUsername.contains(q) ||
+            displayName.contains(q) ||
+            lastMessage.contains(q);
       }).toList();
     });
   }
@@ -73,9 +82,16 @@ class _SearchChatsScreenState extends State<SearchChatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      title: 'Поиск чатов',
-      child: Column(
+    // ✅ Обычный Scaffold со стрелкой назад
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Поиск чатов'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
@@ -96,11 +112,16 @@ class _SearchChatsScreenState extends State<SearchChatsScreen> {
                     : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                filled: true,
+                fillColor: Colors.grey[200],
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                autofocus: true,
               ),
-              autofocus: true,
             ),
           ),
           Expanded(

@@ -1,7 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
-import '../widgets/user_tile.dart';
 
 class CreateChatScreen extends StatefulWidget {
   const CreateChatScreen({super.key});
@@ -18,12 +18,21 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
   List<User> _selectedMembers = [];
   bool _isPublic = false;
   bool _searching = false;
+  Timer? _debounce;
 
   @override
   void dispose() {
     _titleController.dispose();
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      _searchUsers(query);
+    });
   }
 
   Future<void> _searchUsers(String query) async {
@@ -31,12 +40,17 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
       setState(() => _searchResults = []);
       return;
     }
+
     setState(() => _searching = true);
     try {
-      final users = await ApiService.searchUsers(query);
+      final users = await ApiService.searchUsers(
+        query: query.trim(),
+        type: 'all',
+        limit: 20,
+      );
       if (mounted) {
         setState(() {
-          _searchResults = users.where((u) => !_selectedMembers.any((s) => s.id == u.id)).toList();
+          _searchResults = users;
           _searching = false;
         });
       }
@@ -46,52 +60,73 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
   }
 
   void _toggleMember(User user) {
-    setState(() {
-      if (_selectedMembers.any((u) => u.id == user.id)) {
-        _selectedMembers.removeWhere((u) => u.id == user.id);
-      } else {
-        _selectedMembers.add(user);
-      }
-    });
+    if (_type == 'private') {
+      // Для ЛС — только один
+      setState(() {
+        if (_selectedMembers.any((u) => u.id == user.id)) {
+          _selectedMembers.removeWhere((u) => u.id == user.id);
+        } else {
+          _selectedMembers = [user];
+        }
+      });
+    } else {
+      setState(() {
+        if (_selectedMembers.any((u) => u.id == user.id)) {
+          _selectedMembers.removeWhere((u) => u.id == user.id);
+        } else {
+          _selectedMembers.add(user);
+        }
+      });
+    }
   }
 
   Future<void> _create() async {
-    if (_type == 'private') {
-      if (_selectedMembers.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Выберите собеседника')),
-        );
-        return;
-      }
-      final res = await ApiService.createChat(
-        type: 'private',
-        members: [_selectedMembers.first.id],
+    if (_selectedMembers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Выберите собеседника')),
       );
-      if (res['success'] == true && mounted) {
-        Navigator.pop(context, res['chat_id']);
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(res['error'] ?? 'Ошибка')),
+      return;
+    }
+
+    try {
+      if (_type == 'private') {
+        final res = await ApiService.createChat(
+          type: 'private',
+          members: [_selectedMembers.first.id],
         );
-      }
-    } else {
-      if (_titleController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Укажите название')),
+        if (res['success'] == true && mounted) {
+          Navigator.pop(context, res['chat_id']);
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(res['error'] ?? 'Ошибка')),
+          );
+        }
+      } else {
+        if (_titleController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Укажите название')),
+          );
+          return;
+        }
+
+        final res = await ApiService.createChat(
+          type: _type,
+          title: _titleController.text.trim(),
+          isPublic: _isPublic,
+          members: _selectedMembers.map((u) => u.id).toList(),
         );
-        return;
+        if (res['success'] == true && mounted) {
+          Navigator.pop(context, res['chat_id']);
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(res['error'] ?? 'Ошибка')),
+          );
+        }
       }
-      final res = await ApiService.createChat(
-        type: _type,
-        title: _titleController.text.trim(),
-        isPublic: _isPublic,
-        members: _selectedMembers.map((u) => u.id).toList(),
-      );
-      if (res['success'] == true && mounted) {
-        Navigator.pop(context, res['chat_id']);
-      } else if (mounted) {
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(res['error'] ?? 'Ошибка')),
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -109,31 +144,34 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
         actions: [
           TextButton(
             onPressed: _create,
-            child: const Text('Создать', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Создать',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
       body: Column(
         children: [
           // Выбор типа
-          Container(
+          Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(child: _typeChip('private', 'ЛС', Icons.person)),
-                const SizedBox(width: 8),
-                Expanded(child: _typeChip('group', 'Группа', Icons.group)),
-                const SizedBox(width: 8),
-                Expanded(child: _typeChip('channel', 'Канал', Icons.campaign)),
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'private', label: Text('Личный')),
+                ButtonSegment(value: 'group', label: Text('Группа')),
+                ButtonSegment(value: 'channel', label: Text('Канал')),
               ],
+              selected: {_type},
+              onSelectionChanged: (set) {
+                setState(() => _type = set.first);
+              },
             ),
           ),
-          const Divider(),
-
-          // Название (для групп/каналов)
+          // Название (для группы/канала)
           if (_type != 'private')
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TextField(
                 controller: _titleController,
                 decoration: const InputDecoration(
@@ -142,36 +180,28 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
                 ),
               ),
             ),
-
-          // Публичный (для групп/каналов)
-          if (_type != 'private')
-            SwitchListTile(
-              title: const Text('Публичный'),
-              subtitle: const Text('Любой может найти и вступить'),
-              value: _isPublic,
-              onChanged: (v) => setState(() => _isPublic = v),
-            ),
-
-          const Divider(),
-
-          // Поиск
+          // Поиск пользователей
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
-              onChanged: _searchUsers,
+              onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: _type == 'private' ? 'Найти пользователя...' : 'Добавить участников...',
+                hintText: 'Поиск пользователей...',
                 prefixIcon: const Icon(Icons.search),
-                border: const OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.grey[200],
               ),
             ),
           ),
-
           // Выбранные участники
           if (_selectedMembers.isNotEmpty)
             Container(
-              height: 80,
+              height: 60,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
@@ -180,31 +210,41 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
                   final user = _selectedMembers[index];
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Stack(
-                      children: [
-                        CircleAvatar(
-                          backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-                          child: user.avatarUrl == null ? Text(user.initial) : null,
-                        ),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: GestureDetector(
-                            onTap: () => _toggleMember(user),
+                    child: GestureDetector(
+                      onTap: () => _toggleMember(user),
+                      child: Stack(
+                        children: [
+                          CircleAvatar(
+                            backgroundImage: user.avatarUrl != null
+                                ? NetworkImage(user.avatarUrl!)
+                                : null,
+                            child: user.avatarUrl == null
+                                ? Text(user.firstName.isNotEmpty
+                                    ? user.firstName[0].toUpperCase()
+                                    : '?')
+                                : null,
+                          ),
+                          Positioned(
+                            right: 0,
+                            top: 0,
                             child: Container(
                               padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                              child: const Icon(Icons.close, size: 12, color: Colors.white),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close,
+                                  size: 12, color: Colors.white),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },
               ),
             ),
-
+          const Divider(),
           // Результаты поиска
           Expanded(
             child: _searching
@@ -212,7 +252,9 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
                 : _searchResults.isEmpty
                     ? Center(
                         child: Text(
-                          _type == 'private' ? 'Найдите пользователя по имени' : 'Добавьте участников',
+                          _type == 'private'
+                              ? 'Найдите пользователя по имени'
+                              : 'Добавьте участников',
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                       )
@@ -220,49 +262,33 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
                         itemCount: _searchResults.length,
                         itemBuilder: (context, index) {
                           final user = _searchResults[index];
-                          final isSelected = _selectedMembers.any((u) => u.id == user.id);
-                          return UserTile(
-                            user: user,
-                            onTap: () => _toggleMember(user),
+                          final isSelected =
+                              _selectedMembers.any((u) => u.id == user.id);
+
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundImage: user.avatarUrl != null
+                                  ? NetworkImage(user.avatarUrl!)
+                                  : null,
+                              child: user.avatarUrl == null
+                                  ? Text(user.firstName.isNotEmpty
+                                      ? user.firstName[0].toUpperCase()
+                                      : '?')
+                                  : null,
+                            ),
+                            title:
+                                Text('${user.firstName} ${user.lastName}'.trim()),
+                            subtitle: Text('@${user.username}'),
                             trailing: isSelected
-                                ? const Icon(Icons.check_circle, color: Colors.green)
+                                ? const Icon(Icons.check_circle,
+                                    color: Colors.teal)
                                 : null,
+                            onTap: () => _toggleMember(user),
                           );
                         },
                       ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _typeChip(String type, String label, IconData icon) {
-    final isSelected = _type == type;
-    return GestureDetector(
-      onTap: () => setState(() => _type = type),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: isSelected ? Theme.of(context).primaryColor : Colors.grey),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Theme.of(context).primaryColor : Colors.grey[700],
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
