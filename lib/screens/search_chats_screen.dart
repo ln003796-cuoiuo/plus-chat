@@ -98,6 +98,7 @@ class _SearchChatsScreenState extends State<SearchChatsScreen> {
             child: TextField(
               controller: _controller,
               onChanged: _onSearchChanged,
+              autofocus: true,
               decoration: InputDecoration(
                 hintText: 'Поиск по названию или сообщениям...',
                 prefixIcon: const Icon(Icons.search),
@@ -120,7 +121,6 @@ class _SearchChatsScreenState extends State<SearchChatsScreen> {
                   horizontal: 16,
                   vertical: 12,
                 ),
-                autofocus: true,
               ),
             ),
           ),
