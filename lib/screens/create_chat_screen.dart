@@ -12,6 +12,7 @@ class CreateChatScreen extends StatefulWidget {
 
 class _CreateChatScreenState extends State<CreateChatScreen> {
   String _type = 'private';
+  final _controller = TextEditingController();
   final _titleController = TextEditingController();
   final _searchController = TextEditingController();
   List<User> _searchResults = [];
@@ -22,6 +23,7 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
 
   @override
   void dispose() {
+    _controller.dispose();  
     _titleController.dispose();
     _searchController.dispose();
     _debounce?.cancel();
