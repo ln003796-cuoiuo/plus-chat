@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 import '../models/user.dart';
@@ -22,8 +23,19 @@ class ApiService {
 
     if (auth) {
       final token = await AuthService.getToken();
-      if (token != null) {
+      
+      // ✅ Логирование для отладки
+      if (kDebugMode) {
+        print('[API] $method $endpoint');
+        print('[API] Token: ${token != null ? '${token.substring(0, 20)}...' : 'NULL'}');
+      }
+      
+      if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
+      } else {
+        if (kDebugMode) {
+          print('[API] ⚠️ Token is null or empty!');
+        }
       }
     }
 
@@ -54,7 +66,24 @@ class ApiService {
           throw Exception('Неподдерживаемый метод: $method');
       }
 
+      if (kDebugMode) {
+        print('[API] Response ${response.statusCode}: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}...');
+      }
+
       final data = jsonDecode(response.body);
+      
+      // ✅ Если 401 — чистим токен
+      if (response.statusCode == 401) {
+        if (kDebugMode) {
+          print('[API] ⚠️ 401 Unauthorized — clearing tokens');
+        }
+        await AuthService.logout();
+        return {
+          'success': false,
+          'error': 'Сессия истекла. Войдите снова',
+        };
+      }
+      
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return data;
       } else {
@@ -64,6 +93,9 @@ class ApiService {
         };
       }
     } catch (e) {
+      if (kDebugMode) {
+        print('[API] ❌ Error: $e');
+      }
       return {
         'success': false,
         'error': 'Ошибка сети: $e',
@@ -175,7 +207,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> checkUsername(String username) {
-    return _request('GET', '/user/username?username=$username', auth: false);
+    return _request('GET', '/user/username?username=${Uri.encodeComponent(username)}', auth: false);
   }
 
   static Future<Map<String, dynamic>> setupProfile({
@@ -204,15 +236,17 @@ class ApiService {
   }
 
   static Future<User?> getUserProfile(String userId) async {
-    final data = await _request('GET', '/user/profile?user_id=$userId');
+    final data = await _request('GET', '/user/profile?user_id=${Uri.encodeComponent(userId)}');
     if (data['success'] == true && data['user'] != null) {
       return User.fromJson(data['user']);
     }
     return null;
   }
 
+  // ✅ ИСПРАВЛЕНО: URL-кодирование параметров
   static Future<List<User>> searchUsers(String query, {String type = 'all'}) async {
-    final data = await _request('GET', '/user/search?q=$query&type=$type');
+    final encodedQuery = Uri.encodeComponent(query);
+    final data = await _request('GET', '/user/search?q=$encodedQuery&type=$type');
     if (data['success'] == true && data['users'] != null) {
       return (data['users'] as List)
           .map((u) => User.fromJson(u))
@@ -221,18 +255,24 @@ class ApiService {
     return [];
   }
 
+  // ✅ ИСПРАВЛЕНО: URL-кодирование параметров
   static Future<List<User>> searchUsersByName({
     String? firstName,
     String? lastName,
     String? middleName,
   }) async {
-    var url = '/user/search-by-name?';
     final params = <String>[];
-    if (firstName != null) params.add('first_name=$firstName');
-    if (lastName != null) params.add('last_name=$lastName');
-    if (middleName != null) params.add('middle_name=$middleName');
-    url += params.join('&');
+    if (firstName != null && firstName.isNotEmpty) {
+      params.add('first_name=${Uri.encodeComponent(firstName)}');
+    }
+    if (lastName != null && lastName.isNotEmpty) {
+      params.add('last_name=${Uri.encodeComponent(lastName)}');
+    }
+    if (middleName != null && middleName.isNotEmpty) {
+      params.add('middle_name=${Uri.encodeComponent(middleName)}');
+    }
     
+    final url = '/user/search-by-name?${params.join('&')}';
     final data = await _request('GET', url);
     if (data['success'] == true && data['users'] != null) {
       return (data['users'] as List)
@@ -287,11 +327,11 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> getChatInfo(String chatId) {
-    return _request('GET', '/chats/info?chat_id=$chatId');
+    return _request('GET', '/chats/info?chat_id=${Uri.encodeComponent(chatId)}');
   }
 
   static Future<Map<String, dynamic>> findPrivateChat(String userId) {
-    return _request('GET', '/chats/find-private?user_id=$userId');
+    return _request('GET', '/chats/find-private?user_id=${Uri.encodeComponent(userId)}');
   }
 
   static Future<Map<String, dynamic>> joinChat(String chatId, {String? inviteCode}) {
@@ -306,7 +346,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> deleteChat(String chatId) {
-    return _request('DELETE', '/chats/delete', body: {'chat_id': chatId});
+    return _request('POST', '/chats/actions/delete', body: {'chat_ids': [chatId]});
   }
 
   static Future<Map<String, dynamic>> updateChatInfo(String chatId, Map<String, dynamic> data) {
@@ -318,7 +358,7 @@ class ApiService {
   }
 
   static Future<List<Map<String, dynamic>>> getChatMembers(String chatId) async {
-    final data = await _request('GET', '/chats/members?chat_id=$chatId');
+    final data = await _request('GET', '/chats/members?chat_id=${Uri.encodeComponent(chatId)}');
     if (data['success'] == true && data['members'] != null) {
       return (data['members'] as List).cast<Map<String, dynamic>>();
     }
@@ -378,7 +418,7 @@ class ApiService {
   // СООБЩЕНИЯ
   // ============================================
   static Future<List<Message>> getMessages(String chatId, {int limit = 50, int? before}) async {
-    var endpoint = '/messages/list?chat_id=$chatId&limit=$limit';
+    var endpoint = '/messages/list?chat_id=${Uri.encodeComponent(chatId)}&limit=$limit';
     if (before != null) endpoint += '&before=$before';
 
     final data = await _request('GET', endpoint);
@@ -482,7 +522,8 @@ class ApiService {
   }
 
   static Future<List<Message>> searchMessages(String chatId, String query) async {
-    final data = await _request('GET', '/messages/search?chat_id=$chatId&q=$query');
+    final encodedQuery = Uri.encodeComponent(query);
+    final data = await _request('GET', '/messages/search?chat_id=${Uri.encodeComponent(chatId)}&q=$encodedQuery');
     if (data['success'] == true && data['messages'] != null) {
       return (data['messages'] as List)
           .map((m) => Message.fromJson(m))
@@ -503,7 +544,7 @@ class ApiService {
   // ============================================
   static Future<List<User>> getFriends({int limit = 50, String? q}) async {
     var url = '/friends/list?limit=$limit';
-    if (q != null) url += '&q=$q';
+    if (q != null && q.isNotEmpty) url += '&q=${Uri.encodeComponent(q)}';
     final data = await _request('GET', url);
     if (data['success'] == true && data['friends'] != null) {
       return (data['friends'] as List)
@@ -519,7 +560,7 @@ class ApiService {
 
   static Future<List<User>> getContacts({int limit = 50, String? q, String? filter}) async {
     var url = '/friends/contacts/list?limit=$limit';
-    if (q != null) url += '&q=$q';
+    if (q != null && q.isNotEmpty) url += '&q=${Uri.encodeComponent(q)}';
     if (filter != null) url += '&filter=$filter';
     final data = await _request('GET', url);
     if (data['success'] == true && data['contacts'] != null) {
@@ -554,7 +595,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> getFriendStatus(String userId) async {
-    final data = await _request('GET', '/friends/status?user_id=$userId');
+    final data = await _request('GET', '/friends/status?user_id=${Uri.encodeComponent(userId)}');
     if (data['success'] == true) return data;
     return {'friendship_status': 'none'};
   }
@@ -595,7 +636,8 @@ class ApiService {
   }
 
   static Future<List<Map<String, dynamic>>> searchGifs(String query, {int limit = 25}) async {
-    final data = await _request('GET', '/gifs/search?q=$query&limit=$limit');
+    final encodedQuery = Uri.encodeComponent(query);
+    final data = await _request('GET', '/gifs/search?q=$encodedQuery&limit=$limit');
     if (data['success'] == true && data['gifs'] != null) {
       return (data['gifs'] as List).cast<Map<String, dynamic>>();
     }
@@ -640,7 +682,7 @@ class ApiService {
   // ============================================
   static Future<List<Map<String, dynamic>>> getGifts({String? category, String sort = 'popular'}) async {
     var url = '/gifts/list?sort=$sort';
-    if (category != null) url += '&category=$category';
+    if (category != null) url += '&category=${Uri.encodeComponent(category)}';
     final data = await _request('GET', url);
     if (data['success'] == true && data['gifts'] != null) {
       return (data['gifts'] as List).cast<Map<String, dynamic>>();
