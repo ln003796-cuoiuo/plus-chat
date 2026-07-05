@@ -30,7 +30,7 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _loadingRecommendations = true);
     try {
       // Загружаем популярных/недавних пользователей
-      final users = await ApiService.searchUsers(query: 'a', type: 'all', limit: 20);
+      final users = await ApiService.searchUsers('a', type: 'all');
       if (mounted) {
         setState(() {
           _recommendations = users;
@@ -57,9 +57,8 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _loading = true);
     try {
       final users = await ApiService.searchUsers(
-        query: query,
+        _controller.text,
         type: _searchType,
-        limit: 30,
       );
       if (mounted) {
         setState(() {
@@ -105,8 +104,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 TextField(
                   controller: _controller,
                   onChanged: _onSearchChanged,
+                  autofocus: true, // <-- Перенесено сюда
                   decoration: InputDecoration(
-                    hintText: 'Поиск по username, имени или email...',
+                    hintText: 'Поиск по username, email или имени...',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _controller.text.isNotEmpty
                         ? IconButton(
@@ -117,17 +117,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             },
                           )
                         : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[200],
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    autofocus: true,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
                   ),
                 ),
                 const SizedBox(height: 12),

@@ -44,9 +44,8 @@ class _CreateChatScreenState extends State<CreateChatScreen> {
     setState(() => _searching = true);
     try {
       final users = await ApiService.searchUsers(
-        query: query.trim(),
+        _controller.text,
         type: 'all',
-        limit: 20,
       );
       if (mounted) {
         setState(() {

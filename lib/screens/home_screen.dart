@@ -41,9 +41,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _loadCurrentUser() async {
     try {
-      final data = await ApiService.getMe();
-      if (data['success'] == true && data['user'] != null) {
-        if (mounted) setState(() => _currentUser = User.fromJson(data['user']));
+      final user = await ApiService.getMe();
+      if (user != null) {
+        if (mounted) setState(() => _currentUser = user);
       }
     } catch (_) {}
   }

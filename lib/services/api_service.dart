@@ -398,6 +398,10 @@ class ApiService {
     });
   }
 
+  static Future<Map<String, dynamic>> deleteChats(List<String> chatIds) async {
+    return _request('POST', '/chats/delete', body: {'chat_ids': chatIds});
+  }
+
   static Future<Map<String, dynamic>> unmuteChats(List<String> chatIds) {
     return _request('POST', '/chats/actions/unmute', body: {'chat_ids': chatIds});
   }
