@@ -6,267 +6,22 @@ import '../models/user.dart';
 import '../models/chat.dart';
 import '../widgets/chat_tile.dart';
 import 'chat_screen.dart';
-import 'create_chat_screen.dart';
 import 'login_screen.dart';
-import 'search_screen.dart';
-import 'search_chats_screen.dart';
-import 'contacts_screen.dart';
-import 'friends_screen.dart';
-import 'settings_screen.dart';
-import 'user_profile_screen.dart';
-import 'change_password_screen.dart';
-
-class _HomeScreenState extends State<HomeScreen> {
-  List<Chat> _chats = [];
-  List<Chat> _archivedChats = [];
-  List<Chat> _favoriteChats = []; // ✅ Добавлено
-  bool _loading = true;
-  String? _errorMessage;
-  Timer? _pollTimer;
-
-  void _showArchivedModal() {
-   showModalBottomSheet(
-     context: context,
-     isScrollControlled: true,
-     backgroundColor: Colors.transparent,
-     builder: (ctx) => DraggableScrollableSheet(
-       initialChildSize: 0.85,
-       minChildSize: 0.5,
-       maxChildSize: 0.95,
-       expand: false,
-       builder: (context, scrollController) {
-         return Container(
-           decoration: const BoxDecoration(
-             color: Colors.white,
-             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-           ),
-           child: Column(
-             children: [
-               const SizedBox(height: 12),
-               Container(
-                 width: 40,
-                 height: 4,
-                 decoration: BoxDecoration(
-                   color: Colors.grey[300],
-                   borderRadius: BorderRadius.circular(2),
-                 ),
-               ),
-               const SizedBox(height: 16),
-               Padding(
-                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                 child: Row(
-                   children: [
-                     const Text(
-                       'Архив',
-                       style: TextStyle(
-                         fontSize: 22,
-                         fontWeight: FontWeight.bold,
-                       ),
-                     ),
-                     const Spacer(),
-                     Text(
-                       '${_archivedChats.length}',
-                       style: TextStyle(
-                         color: Colors.grey[600],
-                         fontSize: 14,
-                       ),
-                     ),
-                   ],
-                 ),
-               ),
-               const SizedBox(height: 16),
-               Expanded(
-                 child: _archivedChats.isEmpty
-                     ? Center(
-                         child: Column(
-                           mainAxisAlignment: MainAxisAlignment.center,
-                           children: [
-                             Icon(Icons.archive_outlined,
-                                 size: 64, color: Colors.grey[400]),
-                             const SizedBox(height: 16),
-                             Text(
-                               'Архив пуст',
-                               style: TextStyle(
-                                   color: Colors.grey[600], fontSize: 16),
-                             ),
-                           ],
-                         ),
-                       )
-                     : ListView.builder(
-                         controller: scrollController,
-                         itemCount: _archivedChats.length,
-                         itemBuilder: (context, index) {
-                           final chat = _archivedChats[index];
-                           return Dismissible(
-                             key: Key(chat.id),
-                             direction: DismissDirection.endToStart,
-                             background: Container(
-                               color: Colors.orange,
-                               alignment: Alignment.centerRight,
-                               padding: const EdgeInsets.only(right: 20),
-                               child: const Icon(Icons.unarchive,
-                                   color: Colors.white),
-                             ),
-                             confirmDismiss: (_) async {
-                               return await showDialog<bool>(
-                                 context: context,
-                                 builder: (ctx) => AlertDialog(
-                                   title: const Text('Разархивировать?'),
-                                   content: Text(
-                                       'Чат "${chat.title ?? "Без названия"}" будет возвращён в список'),
-                                   actions: [
-                                     TextButton(
-                                       onPressed: () => Navigator.pop(ctx, false),
-                                       child: const Text('Отмена'),
-                                     ),
-                                     FilledButton(
-                                       onPressed: () => Navigator.pop(ctx, true),
-                                       child: const Text('Разархивировать'),
-                                     ),
-                                   ],
-                                 ),
-                               );
-                             },
-                             onDismissed: (_) async {
-                               await ApiService.unarchiveChats([chat.id]);
-                               _loadData();
-                             },
-                             child: ChatTile(
-                               chat: chat,
-                               onTap: () {
-                                 Navigator.push(
-                                   context,
-                                   MaterialPageRoute(
-                                     builder: (_) => ChatScreen(chat: chat),
-                                   ),
-                                 );
-                               },
-                             ),
-                           );
-                         },
-                       ),
-               ),
-             ],
-           ),
-         );
-       },
-     ),
-   );
- }
-
-  void _showFavoritesModal() {
-   showModalBottomSheet(
-    context: context,
-     isScrollControlled: true,
-     backgroundColor: Colors.transparent,
-     builder: (ctx) => DraggableScrollableSheet(
-       initialChildSize: 0.85,
-       minChildSize: 0.5,
-       maxChildSize: 0.95,
-       expand: false,
-       builder: (context, scrollController) {
-         return Container(
-           decoration: const BoxDecoration(
-             color: Colors.white,
-             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-           ),
-           child: Column(
-             children: [
-               const SizedBox(height: 12),
-               Container(
-                 width: 40,
-                 height: 4,
-                 decoration: BoxDecoration(
-                   color: Colors.grey[300],
-                   borderRadius: BorderRadius.circular(2),
-                 ),
-               ),
-               const SizedBox(height: 16),
-               Padding(
-                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                 child: Row(
-                   children: [
-                     const Text(
-                       'Избранное',
-                       style: TextStyle(
-                         fontSize: 22,
-                         fontWeight: FontWeight.bold,
-                       ),
-                     ),
-                     const Spacer(),
-                     Text(
-                       '${_favoriteChats.length}',
-                       style: TextStyle(
-                         color: Colors.grey[600],
-                         fontSize: 14,
-                       ),
-                     ),
-                   ],
-                 ),
-               ),
-               const SizedBox(height: 16),
-               Expanded(
-                 child: _favoriteChats.isEmpty
-                     ? Center(
-                         child: Column(
-                           mainAxisAlignment: MainAxisAlignment.center,
-                           children: [
-                            Icon(Icons.star_outline,
-                                 size: 64, color: Colors.grey[400]),
-                             const SizedBox(height: 16),
-                             Text(
-                               'Нет избранных чатов',
-                               style: TextStyle(
-                                  color: Colors.grey[600], fontSize: 16),
-                             ),
-                             const SizedBox(height: 8),
-                             Text(
-                               'Добавьте чат в избранное через меню',
-                               style: TextStyle(
-                                   color: Colors.grey[500], fontSize: 13),
-                             ),
-                           ],
-                         ),
-                       )
-                     : ListView.builder(
-                         controller: scrollController,
-                         itemCount: _favoriteChats.length,
-                         itemBuilder: (context, index) {
-                           final chat = _favoriteChats[index];
-                           return ChatTile(
-                             chat: chat,
-                             onTap: () {
-                               Navigator.push(
-                                 context,
-                                 MaterialPageRoute(
-                                   builder: (_) => ChatScreen(chat: chat),
-                                 ),
-                               );
-                             },
-                           );
-                         },
-                       ),
-               ),
-             ],
-           ),
-         );
-       },
-     ),
-   );
- }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String title;
+  const HomeScreen({super.key, this.title = 'Чаты'});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   List<Chat> _chats = [];
   List<Chat> _archivedChats = [];
-  List<Chat> _favoriteChats = []; // ✅ Избранное
+  List<Chat> _favoriteChats = [];
   bool _loading = true;
+  String? _errorMessage;
   Timer? _pollTimer;
   User? _currentUser;
 
@@ -278,49 +33,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _startPolling();
   }
 
-  Future<void> _loadData() async {
-   try {
-     setState(() {
-       _loading = true;
-       _errorMessage = null;
-     });
-     
-     // Загружаем все три списка параллельно
-     final results = await Future.wait([
-       ApiService.getChats(archived: false, favorites: false),
-       ApiService.getChats(archived: true),
-       ApiService.getChats(favorites: true),
-     ]);
-     
-     if (mounted) {
-       setState(() {
-         _chats = results[0];
-         _archivedChats = results[1];
-         _favoriteChats = results[2];
-         _loading = false;
-       });
-     }
-   } catch (e) {
-     if (mounted) {
-       setState(() {
-         _errorMessage = e.toString();
-         _loading = false;
-       });
-     }
-   }
- }
-
-  Future<void> _loadData({bool silent = false}) async {
+  Future<void> _loadCurrentUser() async {
     try {
-      if (!silent) setState(() => _loading = true);
-      
-      // Параллельно загружаем все списки
+      final user = await ApiService.getMe();
+      if (mounted) setState(() => _currentUser = user);
+    } catch (_) {}
+  }
+
+  Future<void> _loadData() async {
+    try {
+      setState(() {
+        _loading = true;
+        _errorMessage = null;
+      });
+
+      // ✅ Загружаем ВСЕ три списка параллельно
       final results = await Future.wait([
         ApiService.getChats(archived: false, favorites: false),
         ApiService.getChats(archived: true),
         ApiService.getChats(favorites: true),
       ]);
-      
+
       if (mounted) {
         setState(() {
           _chats = results[0];
@@ -330,14 +63,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _loading = false;
+        });
+      }
     }
   }
 
   void _startPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _loadData(silent: true);
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      _loadData();
     });
   }
 
@@ -369,14 +107,32 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showCreateChatDialog() {
-    // ✅ Открываем полноценный экран создания чата
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CreateChatScreen()),
-    ).then((_) => _loadData());
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Создать чат'),
+        content: const Text('Введите ID пользователя для создания личного чата'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              // TODO: Открыть полноценный экран создания чата
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Скоро будет доступно')),
+              );
+            },
+            child: const Text('Создать'),
+          ),
+        ],
+      ),
+    );
   }
 
-  // ✅ Показ архива как модального окна (bottom sheet)
+  // ✅ МОДАЛКА АРХИВА
   void _showArchivedModal() {
     showModalBottomSheet(
       context: context,
@@ -409,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
                     children: [
-                      Text(
+                      const Text(
                         'Архив',
                         style: TextStyle(
                           fontSize: 22,
@@ -507,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // ✅ Показ избранного как модального окна
+  // ✅ МОДАЛКА ИЗБРАННОГО
   void _showFavoritesModal() {
     showModalBottomSheet(
       context: context,
@@ -609,96 +365,97 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  // ✅ МЕНЮ ЧАТА (долгое нажатие)
   void _showChatOptions(Chat chat) {
-   showModalBottomSheet(
-     context: context,
-     builder: (ctx) => SafeArea(
-       child: Column(
-         mainAxisSize: MainAxisSize.min,
-         children: [
-           // ✅ Пункт "В избранное" / "Убрать из избранного"
-           ListTile(
-             leading: Icon(
-               chat.isFavorite ? Icons.star : Icons.star_outline,
-               color: chat.isFavorite ? Colors.amber : null,
-             ),
-             title: Text(chat.isFavorite ? 'Убрать из избранного' : 'В избранное'),
-             onTap: () async {
-               Navigator.pop(ctx);
-               if (chat.isFavorite) {
-                 await ApiService.unfavoriteChats([chat.id]);
-               } else {
-                 await ApiService.favoriteChats([chat.id]);
-               }
-               _loadData();
-             },
-           ),
-           // ✅ Пункт "В архив" / "Разархивировать"
-           ListTile(
-             leading: Icon(
-               chat.isArchived ? Icons.unarchive : Icons.archive_outlined,
-             ),
-             title: Text(chat.isArchived ? 'Разархивировать' : 'В архив'),
-             onTap: () async {
-               Navigator.pop(ctx);
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // В избранное
+            ListTile(
+              leading: Icon(
+                chat.isFavorite ? Icons.star : Icons.star_outline,
+                color: chat.isFavorite ? Colors.amber : null,
+              ),
+              title: Text(chat.isFavorite ? 'Убрать из избранного' : 'В избранное'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                if (chat.isFavorite) {
+                  await ApiService.unfavoriteChats([chat.id]);
+                } else {
+                  await ApiService.favoriteChats([chat.id]);
+                }
+                _loadData();
+              },
+            ),
+            // В архив
+            ListTile(
+              leading: Icon(
+                chat.isArchived ? Icons.unarchive : Icons.archive_outlined,
+              ),
+              title: Text(chat.isArchived ? 'Разархивировать' : 'В архив'),
+              onTap: () async {
+                Navigator.pop(ctx);
                 if (chat.isArchived) {
-                 await ApiService.unarchiveChats([chat.id]);
-               } else {
-                 await ApiService.archiveChats([chat.id]);
-               }
-               _loadData();
-             },
-           ),
-           // Пункт "Выключить звук" / "Включить звук"
-           ListTile(
-             leading: Icon(
-               chat.isMuted ? Icons.notifications : Icons.notifications_off,
-             ),
-             title: Text(chat.isMuted ? 'Включить звук' : 'Выключить звук'),
-             onTap: () async {
-               Navigator.pop(ctx);
-               if (chat.isMuted) {
-                 await ApiService.unmuteChats([chat.id]);
-               } else {
-                 await ApiService.muteChats([chat.id]);
-               }
-               _loadData();
-             },
-           ),
-           // Пункт "Удалить чат"
-           ListTile(
-             leading: const Icon(Icons.delete_outline, color: Colors.red),
-             title: const Text('Удалить чат', style: TextStyle(color: Colors.red)),
-             onTap: () async {
-               Navigator.pop(ctx);
-               final confirm = await showDialog<bool>(
-                 context: context,
-                 builder: (ctx) => AlertDialog(
-                   title: const Text('Удалить чат?'),
-                   content: const Text('Все сообщения будут удалены'),
-                   actions: [
-                     TextButton(
-                       onPressed: () => Navigator.pop(ctx, false),
-                       child: const Text('Отмена'),
-                     ),
-                     TextButton(
-                       onPressed: () => Navigator.pop(ctx, true),
-                       child: const Text('Удалить', style: TextStyle(color: Colors.red)),
-                     ),
-                   ],
-                 ),
-               );
-               if (confirm == true) {
-                 await ApiService.deleteChat(chat.id);
-                 _loadData();
-               }
-             },
-           ),
-         ],
-       ),
-     ),
-   );
- }
+                  await ApiService.unarchiveChats([chat.id]);
+                } else {
+                  await ApiService.archiveChats([chat.id]);
+                }
+                _loadData();
+              },
+            ),
+            // Звук
+            ListTile(
+              leading: Icon(
+                chat.isMuted ? Icons.notifications : Icons.notifications_off,
+              ),
+              title: Text(chat.isMuted ? 'Включить звук' : 'Выключить звук'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                if (chat.isMuted) {
+                  await ApiService.unmuteChats([chat.id]);
+                } else {
+                  await ApiService.muteChats([chat.id]);
+                }
+                _loadData();
+              },
+            ),
+            // Удалить
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('Удалить чат', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Удалить чат?'),
+                    content: const Text('Все сообщения будут удалены'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Отмена'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await ApiService.deleteChat(chat.id);
+                  _loadData();
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -706,200 +463,201 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
- @override
- Widget build(BuildContext context) {
-   return Scaffold(
-     appBar: AppBar(
-      title: Text(widget.title),
-       centerTitle: true,
-       leading: Builder(
-         builder: (context) => IconButton(
-           icon: const Icon(Icons.menu),
-           onPressed: () => Scaffold.of(context).openDrawer(),
-         ),
-       ),
-       actions: [
-         IconButton(
-           icon: const Icon(Icons.search),
-           onPressed: () {
-             Navigator.pushNamed(context, '/search');
-           },
-         ),
-       ],
-     ),
-     drawer: _buildDrawer(),
-     body: _loading
-         ? const Center(child: CircularProgressIndicator())
-         : _errorMessage != null
-             ? Center(
-                 child: Column(
-                   mainAxisAlignment: MainAxisAlignment.center,
-                   children: [
-                     Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
-                     const SizedBox(height: 16),
-                     Text(
-                       _errorMessage!,
-                       textAlign: TextAlign.center,
-                       style: TextStyle(color: Colors.grey[600]),
-                     ),
-                     const SizedBox(height: 24),
-                     FilledButton(
-                       onPressed: _loadData,
-                       child: const Text('Повторить'),
-                     ),
-                   ],
-                 ),
-               )
-             : Column(
-                 children: [
-                   // ✅ Плитка "Избранное" (если есть избранные чаты)
-                   if (_favoriteChats.isNotEmpty)
-                     InkWell(
-                       onTap: _showFavoritesModal,
-                       child: Container(
-                         width: double.infinity,
-                         padding: const EdgeInsets.symmetric(
-                             horizontal: 16, vertical: 12),
-                         decoration: BoxDecoration(
-                           color: Colors.amber[50],
-                           border: Border(
-                             bottom: BorderSide(color: Colors.amber[200]!),
-                           ),
-                         ),
-                         child: Row(
-                           children: [
-                             Icon(Icons.star, size: 20, color: Colors.amber[700]),
-                             const SizedBox(width: 12),
-                             Text(
-                               'Избранное',
-                               style: TextStyle(
-                                 fontSize: 15,
-                                 fontWeight: FontWeight.w500,
-                                 color: Colors.amber[900],
-                               ),
-                             ),
-                             const Spacer(),
-                             Container(
-                               padding: const EdgeInsets.symmetric(
-                                   horizontal: 8, vertical: 2),
-                               decoration: BoxDecoration(
-                                 color: Colors.amber[700],
-                                 borderRadius: BorderRadius.circular(12),
-                               ),
-                               child: Text(
-                                 '${_favoriteChats.length}',
-                                 style: const TextStyle(
-                                   color: Colors.white,
-                                   fontSize: 12,
-                                   fontWeight: FontWeight.bold,
-                                 ),
-                               ),
-                             ),
-                           ],
-                         ),
-                       ),
-                     ),
-                   // ✅ Плитка "Архив" (если есть архивированные чаты)
-                   if (_archivedChats.isNotEmpty)
-                     InkWell(
-                       onTap: _showArchivedModal,
-                       child: Container(
-                         width: double.infinity,
-                         padding: const EdgeInsets.symmetric(
-                             horizontal: 16, vertical: 12),
-                         decoration: BoxDecoration(
-                           color: Colors.grey[100],
-                           border: Border(
-                             bottom: BorderSide(color: Colors.grey[300]!),
-                           ),
-                         ),
-                         child: Row(
-                           children: [
-                             Icon(Icons.archive_outlined,
-                                 size: 20, color: Colors.grey[700]),
-                             const SizedBox(width: 12),
-                             Text(
-                               'Архив',
-                               style: TextStyle(
-                                 fontSize: 15,
-                                 fontWeight: FontWeight.w500,
-                                 color: Colors.grey[700],
-                               ),
-                             ),
-                             const Spacer(),
-                             Container(
-                               padding: const EdgeInsets.symmetric(
-                                   horizontal: 8, vertical: 2),
-                               decoration: BoxDecoration(
-                                 color: Colors.grey[600],
-                                 borderRadius: BorderRadius.circular(12),
-                               ),
-                               child: Text(
-                                 '${_archivedChats.length}',
-                                 style: const TextStyle(
-                                   color: Colors.white,
-                                   fontSize: 12,
-                                   fontWeight: FontWeight.bold,
-                                 ),
-                               ),
-                             ),
-                           ],
-                         ),
-                       ),
-                     ),
-                   // Список обычных чатов
-                   Expanded(
-                     child: _chats.isEmpty
-                         ? Center(
-                             child: Column(
-                               mainAxisAlignment: MainAxisAlignment.center,
-                               children: [
-                                 Icon(Icons.chat_bubble_outline,
-                                     size: 64, color: Colors.grey[400]),
-                                 const SizedBox(height: 16),
-                                 Text(
-                                   'Пока нет чатов',
-                                   style: TextStyle(
-                                       fontSize: 18, color: Colors.grey[600]),
-                                 ),
-                                 const SizedBox(height: 8),
-                                 Text(
-                                   'Нажмите + чтобы начать общение',
-                                   style: TextStyle(
-                                       fontSize: 14, color: Colors.grey[500]),
-                                 ),
-                               ],
-                             ),
-                           )
-                         : ListView.builder(
-                             itemCount: _chats.length,
-                             itemBuilder: (context, index) {
-                               final chat = _chats[index];
-                               return ChatTile(
-                                 chat: chat,
-                                 onTap: () {
-                                   Navigator.push(
-                                     context,
-                                     MaterialPageRoute(
-                                       builder: (_) => ChatScreen(chat: chat),
-                                     ),
-                                   ).then((_) => _loadData());
-                                 },
-                                 onLongPress: () => _showChatOptions(chat),
-                               );
-                             },
-                           ),
-                   ),
-                 ],
-               ),
-     floatingActionButton: FloatingActionButton(
-       onPressed: _showCreateChatDialog,
-       backgroundColor: const Color(0xFF075E54),
-       child: const Icon(Icons.add, color: Colors.white),
-     ),
-   );
- }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+        centerTitle: true,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.pushNamed(context, '/search');
+            },
+          ),
+        ],
+      ),
+      drawer: _buildDrawer(),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: _loadData,
+                        child: const Text('Повторить'),
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: [
+                    // ✅ Плитка "Избранное"
+                    if (_favoriteChats.isNotEmpty)
+                      InkWell(
+                        onTap: _showFavoritesModal,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber[50],
+                            border: Border(
+                              bottom: BorderSide(color: Colors.amber[200]!),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.star, size: 20, color: Colors.amber[700]),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Избранное',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.amber[900],
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber[700],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${_favoriteChats.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    // ✅ Плитка "Архив"
+                    if (_archivedChats.isNotEmpty)
+                      InkWell(
+                        onTap: _showArchivedModal,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey[300]!),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.archive_outlined,
+                                  size: 20, color: Colors.grey[700]),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Архив',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[600],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${_archivedChats.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    // Список чатов
+                    Expanded(
+                      child: _chats.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.chat_bubble_outline,
+                                      size: 64, color: Colors.grey[400]),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Пока нет чатов',
+                                    style: TextStyle(
+                                        fontSize: 18, color: Colors.grey[600]),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Нажмите + чтобы начать общение',
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.grey[500]),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: _chats.length,
+                              itemBuilder: (context, index) {
+                                final chat = _chats[index];
+                                return ChatTile(
+                                  chat: chat,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ChatScreen(chat: chat),
+                                      ),
+                                    ).then((_) => _loadData());
+                                  },
+                                  onLongPress: () => _showChatOptions(chat),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateChatDialog,
+        backgroundColor: const Color(0xFF075E54),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
 
+  // ✅ БОКОВОЕ МЕНЮ (БЕЗ ПОДАРКОВ!)
   Widget _buildDrawer() {
     return Drawer(
       child: SafeArea(
@@ -908,53 +666,82 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             // Шапка
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              color: const Color(0xFF075E54),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                  ],
+                ),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: _currentUser?.avatarUrl != null
-                        ? NetworkImage(_currentUser!.avatarUrl!)
-                        : null,
-                    child: _currentUser?.avatarUrl == null
-                        ? Text(
-                            _currentUser?.firstName.isNotEmpty == true
-                                ? _currentUser!.firstName[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                                fontSize: 24, color: Colors.white),
-                          )
-                        : null,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/profile');
+                    },
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Colors.white,
+                          backgroundImage: _currentUser?.avatarUrl != null
+                              ? NetworkImage(_currentUser!.avatarUrl!)
+                              : null,
+                          child: _currentUser?.avatarUrl == null
+                              ? Text(
+                                  _currentUser?.initials ?? '?',
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        if (_currentUser?.isOnline ?? false)
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    _currentUser != null
-                        ? '${_currentUser!.firstName} ${_currentUser!.lastName}'
-                            .trim()
-                        : 'Пользователь',
+                    _currentUser?.displayName ?? 'Пользователь',
                     style: const TextStyle(
-                      color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _currentUser?.username != null
-                        ? '@${_currentUser!.username}'
-                        : '',
+                    '@${_currentUser?.username ?? 'username'}',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
                       fontSize: 14,
+                      color: Colors.white.withOpacity(0.8),
                     ),
                   ),
                 ],
               ),
             ),
             const Divider(),
-            // Меню
+            // Меню — БЕЗ ПОДАРКОВ!
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -980,7 +767,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       Navigator.pushNamed(context, '/friends');
                     },
                   ),
-                  // ✅ УБРАЛИ "Подарки"
+                  // ❌ ПОДАРКИ УДАЛЕНЫ!
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.settings_outlined),
