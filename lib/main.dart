@@ -53,18 +53,8 @@ class PlusChatApp extends StatelessWidget {
         '/gifts': (context) => const GiftsScreen(),
         '/archived': (context) => const ArchivedChatsScreen(),
         '/change-password': (context) => const ChangePasswordScreen(),
-        '/search-chats': (context) => const SearchChatsScreen(),
       },
       onGenerateRoute: (settings) {
-        if (settings.name == '/verify') {
-          final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder: (context) => VerifyScreen(
-              email: args['email'] as String,
-              type: args['type'] as String? ?? 'registration',
-            ),
-          );
-        }
         if (settings.name == '/chat') {
           final chat = settings.arguments as Chat;
           return MaterialPageRoute(
@@ -76,6 +66,15 @@ class PlusChatApp extends StatelessWidget {
           return MaterialPageRoute(
             builder: (context) => UserProfileScreen(
               userId: args['userId'] as String,
+            ),
+          );
+        }
+        if (settings.name == '/verify') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (context) => VerifyScreen(
+              email: args['email'] as String,
+              type: args['type'] as String,
             ),
           );
         }
@@ -94,52 +93,23 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  bool _isLoading = true;
-  bool _isAuthenticated = false;
-
   @override
   void initState() {
     super.initState();
-    _checkAuth();
-    _checkUpdate(); // Оставляем проверку обновлений
+    _checkUpdate();
   }
-
-  Future<void> _checkAuth() async {
-    // Ждем небольшую задержку, чтобы SharedPreferences успел инициализироваться
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-    final token = await AuthService.getToken();
-    
-    if (mounted) {
-      setState(() {
-        _isAuthenticated = (token != null && token.isNotEmpty);
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // Если токен есть — сразу показываем главный экран, иначе экран входа
-    return _isAuthenticated 
-        ? const HomeScreen() 
-        : const LoginScreen();
-  }
-}
 
   Future<void> _checkUpdate() async {
     // Проверяем обновления в фоне
-    UpdateService.checkForUpdate().then((info) {
-      if (info != null && info.needsUpdate && mounted) {
-        UpdateService.showUpdateDialog(context, info);
-      }
-    });
+    final info = await UpdateService.checkForUpdate();
+    if (info != null && info.needsUpdate && mounted) {
+      // ✅ Используем context из build метода через WidgetsBinding
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          UpdateService.showUpdateDialog(context, info);
+        }
+      });
+    }
   }
 
   @override
@@ -152,9 +122,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
+
         if (snapshot.data == true) {
           return const HomeScreen();
         }
+
         return const LoginScreen();
       },
     );
