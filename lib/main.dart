@@ -94,11 +94,44 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isLoading = true;
+  bool _isAuthenticated = false;
+
   @override
   void initState() {
     super.initState();
-    _checkUpdate();
+    _checkAuth();
+    _checkUpdate(); // Оставляем проверку обновлений
   }
+
+  Future<void> _checkAuth() async {
+    // Ждем небольшую задержку, чтобы SharedPreferences успел инициализироваться
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    final token = await AuthService.getToken();
+    
+    if (mounted) {
+      setState(() {
+        _isAuthenticated = (token != null && token.isNotEmpty);
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Если токен есть — сразу показываем главный экран, иначе экран входа
+    return _isAuthenticated 
+        ? const HomeScreen() 
+        : const LoginScreen();
+  }
+}
 
   Future<void> _checkUpdate() async {
     // Проверяем обновления в фоне
