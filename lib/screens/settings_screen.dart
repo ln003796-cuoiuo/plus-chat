@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_scaffold.dart';
 import 'web_view_screen.dart';
+import 'privacy_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -54,6 +55,18 @@ class SettingsScreen extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.pushNamed(context, '/change-password');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.visibility_off_outlined),
+            title: const Text('Приватность'),
+            subtitle: const Text('Скрытый профиль и настройки видимости'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacySettingsScreen()),
+              );
             },
           ),
           const Divider(),

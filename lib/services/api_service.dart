@@ -235,6 +235,12 @@ class ApiService {
     return _request('PUT', '/user/settings', body: settings);
   }
 
+  static Future<Map<String, dynamic>> setProfileVisibility(bool isHidden) {
+    return _request('PUT', '/user/visibility', body: {
+      'is_hidden': isHidden ? 1 : 0,
+    });
+  }
+
   static Future<User?> getUserProfile(String userId) async {
     final data = await _request('GET', '/user/profile?user_id=${Uri.encodeComponent(userId)}');
     if (data['success'] == true && data['user'] != null) {

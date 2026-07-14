@@ -22,6 +22,7 @@ class User {
   final String? customStatusText;
   final String? customStatusEmoji;
   final String premiumStatus;
+  final bool isHidden;
   final int plusCoins;
   final int giftsReceivedCount;
   final int giftsSentCount;
@@ -58,6 +59,7 @@ class User {
     this.customStatusText,
     this.customStatusEmoji,
     this.premiumStatus = 'free',
+    this.isHidden = false,
     this.plusCoins = 0,
     this.giftsReceivedCount = 0,
     this.giftsSentCount = 0,
@@ -96,6 +98,7 @@ class User {
       customStatusText: json['custom_status_text'] ?? json['customStatusText'],
       customStatusEmoji: json['custom_status_emoji'] ?? json['customStatusEmoji'],
       premiumStatus: json['premium_status'] ?? json['is_premium'] == true ? 'premium' : 'free',
+      isHidden: json['is_hidden'] == true || json['isHidden'] == true,
       plusCoins: (json['plus_coins'] ?? json['plusCoins'] ?? 0) is int
           ? json['plus_coins'] ?? json['plusCoins'] ?? 0
           : int.tryParse((json['plus_coins'] ?? json['plusCoins'] ?? 0).toString()) ?? 0,
