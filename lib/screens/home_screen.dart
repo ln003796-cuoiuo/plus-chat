@@ -7,6 +7,12 @@ import '../models/chat.dart';
 import '../widgets/chat_tile.dart';
 import 'chat_screen.dart';
 import 'login_screen.dart';
+import 'create_chat_screen.dart';
+import 'search_chats_screen.dart';
+import 'user_profile_screen.dart';
+import 'settings_screen.dart';
+import 'friends_screen.dart';
+import 'contacts_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String title;
@@ -24,6 +30,10 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _errorMessage;
   Timer? _pollTimer;
   User? _currentUser;
+  
+  // Выделение чатов
+  bool _isSelectionMode = false;
+  Set<String> _selectedChatIds = {};
 
   @override
   void initState() {
@@ -47,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _errorMessage = null;
       });
 
-      // ✅ Загружаем ВСЕ три списка параллельно
       final results = await Future.wait([
         ApiService.getChats(archived: false, favorites: false),
         ApiService.getChats(archived: true),
@@ -79,12 +88,53 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _logout() async {
+  // ============================================
+  // ВЫДЕЛЕНИЕ ЧАТОВ
+  // ============================================
+  void _toggleChatSelection(String chatId) {
+    setState(() {
+      if (_selectedChatIds.contains(chatId)) {
+        _selectedChatIds.remove(chatId);
+      } else {
+        _selectedChatIds.add(chatId);
+      }
+      
+      if (_selectedChatIds.isEmpty) {
+        _isSelectionMode = false;
+      } else {
+        _isSelectionMode = true;
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedChatIds.clear();
+    });
+  }
+
+  // ============================================
+  // ДЕЙСТВИЯ С ВЫДЕЛЕННЫМИ ЧАТАМИ
+  // ============================================
+  Future<void> _archiveSelected() async {
+    await ApiService.archiveChats(_selectedChatIds.toList());
+    _exitSelectionMode();
+    _loadData();
+  }
+
+  Future<void> _muteSelected() async {
+    await ApiService.muteChats(_selectedChatIds.toList());
+    _exitSelectionMode();
+    _loadData();
+  }
+
+  Future<void> _deleteSelected() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Выйти?'),
-        content: const Text('Вы уверены, что хотите выйти?'),
+        title: const Text('Удалить чаты?'),
+        content: Text('Будет удалено чатов: ${_selectedChatIds.length}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -92,47 +142,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Выйти', style: TextStyle(color: Colors.red)),
+            child: const Text('Удалить', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
-
-    if (confirm == true && mounted) {
-      await AuthService.logout();
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      }
+    
+    if (confirm == true) {
+      await ApiService.deleteChats(_selectedChatIds.toList());
+      _exitSelectionMode();
+      _loadData();
     }
   }
 
-  void _showCreateChatDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Создать чат'),
-        content: const Text('Введите ID пользователя для создания личного чата'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Отмена'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              // TODO: Открыть полноценный экран создания чата
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Скоро будет доступно')),
-              );
-            },
-            child: const Text('Создать'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ✅ МОДАЛКА АРХИВА
+  // ============================================
+  // МОДАЛКА АРХИВА
+  // ============================================
   void _showArchivedModal() {
     showModalBottomSheet(
       context: context,
@@ -263,7 +288,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ✅ МОДАЛКА ИЗБРАННОГО
+  // ============================================
+  // МОДАЛКА ИЗБРАННОГО
+  // ============================================
   void _showFavoritesModal() {
     showModalBottomSheet(
       context: context,
@@ -365,7 +392,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ✅ МЕНЮ ЧАТА (долгое нажатие)
+  // ============================================
+  // МЕНЮ ЧАТА (долгое нажатие)
+  // ============================================
   void _showChatOptions(Chat chat) {
     showModalBottomSheet(
       context: context,
@@ -373,7 +402,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // В избранное
             ListTile(
               leading: Icon(
                 chat.isFavorite ? Icons.star : Icons.star_outline,
@@ -390,7 +418,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 _loadData();
               },
             ),
-            // В архив
             ListTile(
               leading: Icon(
                 chat.isArchived ? Icons.unarchive : Icons.archive_outlined,
@@ -406,7 +433,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 _loadData();
               },
             ),
-            // Звук
             ListTile(
               leading: Icon(
                 chat.isMuted ? Icons.notifications : Icons.notifications_off,
@@ -422,7 +448,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 _loadData();
               },
             ),
-            // Удалить
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: const Text('Удалить чат', style: TextStyle(color: Colors.red)),
@@ -457,6 +482,33 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Выйти?'),
+        content: const Text('Вы уверены, что хотите выйти?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Выйти', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      await AuthService.logout();
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _pollTimer?.cancel();
@@ -467,22 +519,47 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: _isSelectionMode
+            ? Text('Выбрано: ${_selectedChatIds.length}')
+            : Text(widget.title),
         centerTitle: true,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              Navigator.pushNamed(context, '/search');
-            },
-          ),
-        ],
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+              )
+            : Builder(
+                builder: (context) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                ),
+              ),
+        actions: _isSelectionMode
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.archive_outlined),
+                  onPressed: _archiveSelected,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.notifications_off),
+                  onPressed: _muteSelected,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _deleteSelected,
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SearchChatsScreen()),
+                    ).then((_) => _loadData());
+                  },
+                ),
+              ],
       ),
       drawer: _buildDrawer(),
       body: _loading
@@ -509,7 +586,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               : Column(
                   children: [
-                    // ✅ Плитка "Избранное"
+                    // Плитка "Избранное"
                     if (_favoriteChats.isNotEmpty)
                       InkWell(
                         onTap: _showFavoritesModal,
@@ -556,7 +633,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                    // ✅ Плитка "Архив"
+                    // Плитка "Архив"
                     if (_archivedChats.isNotEmpty)
                       InkWell(
                         onTap: _showArchivedModal,
@@ -632,17 +709,30 @@ class _HomeScreenState extends State<HomeScreen> {
                               itemCount: _chats.length,
                               itemBuilder: (context, index) {
                                 final chat = _chats[index];
+                                final isSelected = _selectedChatIds.contains(chat.id);
+                                
                                 return ChatTile(
                                   chat: chat,
+                                  isSelected: isSelected,
                                   onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => ChatScreen(chat: chat),
-                                      ),
-                                    ).then((_) => _loadData());
+                                    if (_isSelectionMode) {
+                                      _toggleChatSelection(chat.id);
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ChatScreen(chat: chat),
+                                        ),
+                                      ).then((_) => _loadData());
+                                    }
                                   },
-                                  onLongPress: () => _showChatOptions(chat),
+                                  onLongPress: () {
+                                    if (_isSelectionMode) {
+                                      _toggleChatSelection(chat.id);
+                                    } else {
+                                      _toggleChatSelection(chat.id);
+                                    }
+                                  },
                                 );
                               },
                             ),
@@ -650,20 +740,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateChatDialog,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateChatScreen()),
+          ).then((_) => _loadData());
+        },
         backgroundColor: const Color(0xFF075E54),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  // ✅ БОКОВОЕ МЕНЮ (БЕЗ ПОДАРКОВ!)
   Widget _buildDrawer() {
     return Drawer(
       child: SafeArea(
         child: Column(
           children: [
-            // Шапка
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -708,15 +801,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             bottom: 2,
                             right: 2,
                             child: Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
-                              ),
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -741,7 +834,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const Divider(),
-            // Меню — БЕЗ ПОДАРКОВ!
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -767,7 +859,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.pushNamed(context, '/friends');
                     },
                   ),
-                  // ❌ ПОДАРКИ УДАЛЕНЫ!
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.settings_outlined),
