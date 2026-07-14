@@ -97,7 +97,9 @@ class User {
       lastSeen: json['last_seen'] ?? json['lastSeen'],
       customStatusText: json['custom_status_text'] ?? json['customStatusText'],
       customStatusEmoji: json['custom_status_emoji'] ?? json['customStatusEmoji'],
-      premiumStatus: json['premium_status'] ?? json['is_premium'] == true ? 'premium' : 'free',
+      premiumStatus: json['premium_status'] != null
+        ? json['premium_status']
+        : (json['is_premium'] == true ? 'premium' : 'free'),
       isHidden: json['is_hidden'] == true || json['isHidden'] == true,
       plusCoins: (json['plus_coins'] ?? json['plusCoins'] ?? 0) is int
           ? json['plus_coins'] ?? json['plusCoins'] ?? 0
