@@ -1,8 +1,13 @@
 // plus-chat-main/lib/services/security_service.dart
+// --- ИМПОРТЫ В НАЧАЛЕ ФАЙЛА ---
 import 'package:root_checker/root_checker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:io';
-import 'dart:convert';
+// import 'dart:io'; // Не используется в этом примере, но может понадобиться
+import 'dart:convert'; // Перемещено в начало
+import 'dart:typed_data'; // Перемещено в начало
+// Используем пакет crypto для SHA-1
+import 'package:crypto/crypto.dart'; // Импортируем пакет crypto
+
 import 'package:flutter/foundation.dart'; // Для kDebugMode
 
 class SecurityService {
@@ -63,11 +68,11 @@ class SecurityService {
   static Future<bool> _checkForPatches() async {
     try {
       // Проверяет наличие известных патчинг инструментов
-      bool isPatched = await RootChecker.detectEmulator;
-      // RootChecker не всегда ловит LP, но можно попробовать другие методы
-      // или использовать более продвинутые библиотеки/нативный код.
-      // Пока используем простую проверку.
-      return isPatched;
+      // RootChecker.detectEmulator может не всегда ловить LP.
+      // Используем простую проверку на Root/Jailbreak как индикатор.
+      // Для более точной проверки патчей нужно больше исследований.
+      // Пока просто возвращаем false.
+      return false;
     } catch (e) {
       debugPrint('[SECURITY] Error checking for patches: $e');
       return false; // В случае ошибки, считаем, что патчей нет
@@ -108,46 +113,18 @@ class SecurityService {
     }
   }
 
-  // --- ВРЕМЕННАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ---
-  // В реальности хешируется APK или его сигнатура, а не произвольный файл.
-  // Для демонстрации используем простой способ.
+  // --- ФУНКЦИЯ ДЛЯ ПРОВЕРКИ (ИСПОЛЬЗУЕТ ПАКЕТ CRYPTO) ---
   static Future<String> _computeCurrentHash() async {
     // Пример: хешируем содержимое одного из файлов или просто строку
     // В релизе используйте более надёжный метод, например, проверку подписи APK.
     // Используем dummy-значение для тестирования.
     String dummyContent = ""; // Здесь должен быть реальный способ получить "сигнатуру" приложения
     List<int> bytes = utf8.encode(dummyContent);
-    var digest = sha1.convert(bytes);
+    var digest = sha1.convert(bytes); // Используем sha1 из пакета crypto
     return digest.toString();
   }
 
-  // --- ИМПОРТЫ ДЛЯ SHA-1 ---
-  // Добавьте в pubspec.yaml: crypto: ^3.0.3
-  // import 'package:crypto/crypto.dart';
-  // Но для простоты пока используем встроенные возможности.
-  // Импортируем dart:io и dart:convert выше.
-  // Реализация _computeCurrentHash требует доработки для реального использования.
+  // --- УДАЛЕНЫ ВРЕМЕННЫЕ РЕШЕНИЯ И НЕПРАВИЛЬНЫЕ ИМПОРТЫ ---
+  // extension Utf8Ext на String и функция sha1(Uint8List data) больше не нужны,
+  // так как мы используем пакет crypto.
 }
-
-// --- ВРЕМЕННОЕ РЕШЕНИЕ БЕЗ ДОПОЛНИТЕЛЬНОЙ ЗАВИСИМОСТИ ДЛЯ SHA-1 ---
-import 'dart:convert';
-import 'dart:typed_data';
-
-extension Utf8Ext on String {
-  Uint8List get toUtf8Bytes => utf8.encode(this) as Uint8List;
-}
-
-Uint8List sha1(Uint8List data) {
-  // Очень упрощённая "SHA-1" функция для демонстрации.
-  // НЕ ИСПОЛЬЗУЙТЕ В ПРОДАКШЕНЕ!
-  // В реальности используйте пакет crypto.
-  // Просто возвращаем длину данных как "хеш" для dummy-проверки.
-  return Uint8List.fromList(data.length.toString().padLeft(40, '0').split('').map((e) => int.parse(e)).toList());
-}
-// --- /ВРЕМЕННОЕ РЕШЕНИЕ ---
-// --- ЛУЧШЕЕ РЕШЕНИЕ: ---
-// 1. Добавьте зависимость: crypto: ^3.0.3 в pubspec.yaml
-// 2. Удалите временное решение выше (extension и sha1)
-// 3. Добавьте: import 'package:crypto/crypto.dart';
-// 4. Используйте: var digest = sha1.convert(bytes);
-// ---

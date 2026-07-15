@@ -1,3 +1,4 @@
+# plus-chat-main/pubspec.yaml
 name: plus_chat
 description: Плюс Чат - современный мессенджер
 publish_to: 'none'
@@ -22,29 +23,28 @@ dependencies:
   badges: ^3.1.2
   permission_handler: ^11.1.0
   open_file: ^3.3.2
-  # --- ЗАВИСИМОСТЬ ---
-  flutter_launcher_icons: ^0.13.1
+  # --- НОВАЯ ЗАВИСИМОСТЬ ---
+  root_checker: ^2.0.0
+  # --- /НОВАЯ ЗАВИСИМОСТЬ ---
+  # --- ЗАВИСИМОСТЬ ДЛЯ SHA-1 ---
+  crypto: ^3.0.3
   # --- /ЗАВИСИМОСТЬ ---
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
-  # --- DEV ЗАВИСИМОСТЬ (если используется в dev) ---
-  # flutter_launcher_icons: ^0.13.1
-  # --- /DEV ЗАВИСИМОСТЬ ---
 
 flutter:
   uses-material-design: true
   assets:
     - assets/
 
-# --- КОНФИГУРАЦИЯ ПЛАГИНА ---
+# Конфигурация иконок (если была проблема до этого)
 flutter_launcher_icons:
   android: true
-  ios: false # Установите в true, если нужно для iOS
+  ios: false
   image_path: "assets/icon.png"
   min_sdk_android: 21
   adaptive_icon_background: "#075E54"
   adaptive_icon_foreground: "assets/icon.png"
-# --- /КОНФИГУРАЦИЯ ПЛАГИНА ---
