@@ -1,8 +1,7 @@
 // plus-chat-main/lib/services/security_service.dart
-// --- ИМПОРТЫ В НАЧАЛЕ ФАЙЛА ---
-import 'package:root_checker/root_checker.dart';
+// --- УДАЛЁН: import 'package:root_checker/root_checker.dart'; ---
+// --- /УДАЛЁН ---
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'dart:io'; // Не используется в этом примере, но может понадобиться
 import 'dart:convert'; // Перемещено в начало
 import 'dart:typed_data'; // Перемещено в начало
 // Используем пакет crypto для SHA-1
@@ -27,11 +26,12 @@ class SecurityService {
   };
 
   static Future<bool> checkAll() async {
-    // Проверяем Root/Jailbreak
-    if (await _checkRoot()) {
-      debugPrint("[SECURITY] Root/Jailbreak detected!");
-      return false;
-    }
+    // --- УДАЛЁН: Проверка Root/Jailbreak ---
+    // if (await _checkRoot()) {
+    //   debugPrint("[SECURITY] Root/Jailbreak detected!");
+    //   return false;
+    // }
+    // --- /УДАЛЁН ---
 
     // Проверяем Integrity (только на релизе)
     if (!kDebugMode) {
@@ -43,41 +43,22 @@ class SecurityService {
       debugPrint("[SECURITY] Skipping integrity check in debug mode.");
     }
 
-    // Проверяем на Lucky Patcher и другие инструменты (через root_checker)
-    if (await _checkForPatches()) {
-       debugPrint("[SECURITY] Potential patching tool detected!");
-       return false;
-    }
+    // --- УДАЛЁН: Проверка на Lucky Patcher и другие инструменты (через root_checker) ---
+    // if (await _checkForPatches()) {
+    //    debugPrint("[SECURITY] Potential patching tool detected!");
+    //    return false;
+    // }
+    // --- /УДАЛЁН ---
 
-    debugPrint("[SECURITY] All checks passed.");
+    debugPrint("[SECURITY] Basic checks passed (Integrity in Release, Debug Mode Check).");
     return true;
   }
 
-  static Future<bool> _checkRoot() async {
-    try {
-      // Проверяет Root (Android) или Jailbreak (iOS)
-      bool isRooted = await RootChecker.isDeviceRooted;
-      return isRooted;
-    } catch (e) {
-      debugPrint('[SECURITY] Error checking root: $e');
-      // В случае ошибки, считаем устройство небезопасным
-      return true; // Или false, в зависимости от политики
-    }
-  }
+  // --- УДАЛЁН: static Future<bool> _checkRoot() async ---
+  // --- /УДАЛЁН ---
 
-  static Future<bool> _checkForPatches() async {
-    try {
-      // Проверяет наличие известных патчинг инструментов
-      // RootChecker.detectEmulator может не всегда ловить LP.
-      // Используем простую проверку на Root/Jailbreak как индикатор.
-      // Для более точной проверки патчей нужно больше исследований.
-      // Пока просто возвращаем false.
-      return false;
-    } catch (e) {
-      debugPrint('[SECURITY] Error checking for patches: $e');
-      return false; // В случае ошибки, считаем, что патчей нет
-    }
-  }
+  // --- УДАЛЁН: static Future<bool> _checkForPatches() async ---
+  // --- /УДАЛЁН ---
 
   static Future<bool> _checkIntegrity() async {
     final prefs = await SharedPreferences.getInstance();
