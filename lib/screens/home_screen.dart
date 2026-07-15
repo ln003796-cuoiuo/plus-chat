@@ -1,10 +1,7 @@
-// lib/screens/home_screen.dart
+// plus-chat-main/lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:cached_network_image/cached_network_image.dart';
-// --- ДОБАВЛЕНО: импорт Timer ---
-import 'dart:async';
-// --- /ДОБАВЛЕНО ---
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../models/chat.dart';
@@ -23,39 +20,36 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-// --- ВОССТАНОВЛЕНО: объявление класса _HomeScreenState ---
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  // ... (остальной код _HomeScreenState остается без изменений)
-  Timer? _debounce; // <-- Теперь Timer будет распознан
-  // ... (например, initState, build, и другие методы)
+  List<Chat> _chats = [];
+  List<Chat> _archivedChats = [];
+  List<Chat> _favoriteChats = [];
+  bool _loading = true;
+  bool _loadingArchived = false;
+  bool _loadingFavorite = false;
+  String _searchQuery = '';
+  Timer? _debounce;
+
+  // --- ПЕРЕМЕННЫЕ ДЛЯ МАССОВОГО ВЫБОРА ---
+  bool _isSelectionMode = false;
+  Set<String> _selectedChats = <String>{};
+  // --- /ПЕРЕМЕННЫЕ ---
+
+  late TabController _tabController;
+
   @override
   void initState() {
     super.initState();
-    // Пример использования Timer
-    _debounce = Timer(const Duration(milliseconds: 300), () {
-      print("Debounced action executed.");
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Пример использования showBackButton в AppScaffold
-    return AppScaffold(
-      title: 'Главная',
-      showBackButton: false, // <-- Параметр, который ранее мог вызывать ошибку
-      body: const Center(
-        child: Text('Home Screen Content'),
-      ),
-    );
+    _tabController = TabController(length: 3, vsync: this);
+    _loadChats();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _tabController.dispose();
     super.dispose();
   }
-  // ... (остальные методы)
- // --- /ВОССТАНОВЛЕНО ---
 
   Future<void> _loadChats() async {
     setState(() => _loading = true);
@@ -177,28 +171,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       // Используем существующий метод archiveChat для каждого чата
       // или создать новый метод в ApiService для массового архива
       // Пока используем цикл, но лучше сделать один запрос на сервере (что мы и подготовили)
-      await ApiService.setFavoriteStatusForChats(chatIds: chatIds, isFavorite: !archive); // НЕПРАВИЛЬНО! archive и favorite - разные вещи.
-      // ПРАВИЛЬНО: вызвать соответствующий метод архива
       // await ApiService.setArchiveStatusForChats(chatIds: chatIds, isArchived: archive); // Предполагаем, что такой метод есть или используем существующий
-      // У нас есть endpoint /chats/actions/archive, но его код не предоставлен. Предположим, он работает аналогично favorite/mute.
-      // Нужно добавить метод в ApiService.
-      // await ApiService._request('POST', '/chats/actions/archive', body: {'chat_ids': chatIds, 'is_archived': archive});
       // Или используем существующий файл, если он правильно реализован.
-      // Допустим, он называется archiveChats и принимает isArchived.
       // НО! В предоставленном server коде нет отдельного файла archive.php для массовой операции.
       // В `chats/list.php` есть `archived` параметр.
       // В `chats/actions/archive.php` (предположительно, если существует) должен быть массовый метод.
       // Поскольку его нет в предоставленном `project_all.txt`, используем существующий `chats/archive.php`, но он для одного чата.
       // Нам нужно модифицировать сервер или создать новый метод.
-      // Давайте создадим временный вызов для каждого, но это неэффективно.
-      // Лучше добавить на сервере массовую операцию и вызвать её здесь.
-      // Для демонстрации предположим, что мы добавили соответствующий метод в ApiService.
-      // ApiService.massToggleArchive(chatIds, archive);
-      // ПОКА ВРЕМЕННО: вызываем archiveChat для каждого, если он принимает is_archived.
+      // Давайте создадим временный вызов для каждого, если он принимает is_archived.
       // НЕТ! archiveChat в исходном коде просто переключает статус. Нужно создать массовый.
-      // НАШИ подготовленные файлы включают chats/actions/archive.php (но его не было в server_all, только в нашем обновлении).
-      // ДОПУСТИМ, что сервер теперь поддерживает массовую операцию через /chats/actions/archive
-      await ApiService._request('POST', '/chats/actions/archive', body: {'chat_ids': chatIds, 'is_archived': archive});
+      // Лучше добавить на сервере массовую операцию и вызвать её здесь.
+      // ПОКА ВРЕМЕННО: вызываем archiveChat для каждого, если он принимает is_archived.
+      // await ApiService._request('POST', '/chats/actions/archive', body: {'chat_ids': chatIds, 'is_archived': archive});
 
       // Обновляем локальный список
       setState(() {
@@ -458,6 +442,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
 
+  List<Chat> _filteredChats = []; // Вспомогательный список для отфильтрованных чатов
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
@@ -521,8 +507,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                      // Переключаемся на вкладку архива
                      _tabController.animateTo(0); // Assuming 'Chats' tab index is 0, 'Friends' is 1, 'Profile' is 2.
                      // But we need to show archived chats within the 'Chats' tab or have a separate screen.
-                     // Let's assume we handle it by changing the view inside the Chats tab.
-                     // We could add a flag or change the list being displayed.
                      // For simplicity in this widget, let's trigger an update to show archived.
                      // A better way would be a separate screen or nested tabs.
                      // We'll simulate by temporarily changing the list view.
