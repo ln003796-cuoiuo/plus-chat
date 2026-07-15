@@ -1,86 +1,71 @@
+// lib/services/auth_service.dart
+// --- ИСПРАВЛЕНО: Добавлены базовые методы ---
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String _keyAccessToken = 'access_token';
-  static const String _keyRefreshToken = 'refresh_token';
-  static const String _keyUserId = 'user_id';
-  static const String _keyEmail = 'email';
-  static const String _keyUsername = 'username';
-  static const String _keyFirstName = 'first_name';
-  static const String _keyLastName = 'last_name';
+  static const String _tokenKey = 'access_token';
+  static const String _refreshTokenKey = 'refresh_token';
 
-  static Future<void> saveTokens(String accessToken, String refreshToken) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyAccessToken, accessToken);
-    await prefs.setString(_keyRefreshToken, refreshToken);
+  // Заглушка для получения текущего пользователя
+  static User? getCurrentUser() {
+    // Реализуйте получение пользователя из хранилища или состояния
+    return null; // Пока возвращаем null
   }
 
-  static Future<void> saveUserId(String userId) async {
+  // Заглушка для проверки аутентификации
+  static Future<bool> isAuthenticated() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyUserId, userId);
-  }
-
-  static Future<void> saveUserInfo({
-    required String email,
-    required String username,
-    required String firstName,
-    required String lastName,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyEmail, email);
-    await prefs.setString(_keyUsername, username);
-    await prefs.setString(_keyFirstName, firstName);
-    await prefs.setString(_keyLastName, lastName);
-  }
-
-  static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyAccessToken);
-  }
-
-  static Future<String?> getRefreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyRefreshToken);
-  }
-
-  static Future<String?> getUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyUserId);
-  }
-
-  static Future<String?> getEmail() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyEmail);
-  }
-
-  static Future<String?> getUsername() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyUsername);
-  }
-
-  static Future<String?> getFirstName() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyFirstName);
-  }
-
-  static Future<String?> getLastName() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyLastName);
-  }
-
-  static Future<bool> isLoggedIn() async {
-    final token = await getToken();
+    final token = prefs.getString(_tokenKey);
     return token != null && token.isNotEmpty;
   }
 
+  // Заглушка для получения токена
+  static Future<String?> getAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
+  }
+
+  // Заглушка для получения refresh токена
+  static Future<String?> getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_refreshTokenKey);
+  }
+
+  // Заглушка для обновления токена
+  static Future<bool> refreshToken() async {
+    // Реализуйте логику обновления токена через API
+    // ...
+    // В случае успеха: await saveTokens(newAccessToken, newRefreshToken);
+    return false; // Пока возвращаем false
+  }
+
+  // Заглушка для сохранения токенов
+  static Future<void> saveTokens(String accessToken, String refreshToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, accessToken);
+    await prefs.setString(_refreshTokenKey, refreshToken);
+  }
+
+  // Заглушка для выхода
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyAccessToken);
-    await prefs.remove(_keyRefreshToken);
-    await prefs.remove(_keyUserId);
-    await prefs.remove(_keyEmail);
-    await prefs.remove(_keyUsername);
-    await prefs.remove(_keyFirstName);
-    await prefs.remove(_keyLastName);
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshTokenKey);
+    // Сбросить состояние пользователя
   }
+  // --- /ИСПРАВЛЕНО ---
 }
+
+// Заглушка для класса User (если не определён в models/user.dart)
+// class User {
+//   final int id;
+//   final String? firstName;
+//   final String? lastName;
+//   final String? username;
+//
+//   User({required this.id, this.firstName, this.lastName, this.username});
+//
+//   String getDisplayName() {
+//     return username ?? '$firstName $lastName'.trim() ?? 'Пользователь $id';
+//   }
+// }

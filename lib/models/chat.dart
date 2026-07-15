@@ -1,7 +1,5 @@
 // lib/models/chat.dart
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'user.dart';
+// ... (импорты)
 
 class Chat {
   final String id;
@@ -14,10 +12,14 @@ class Chat {
   final String lastMessageText;
   final String lastMessageTime;
   final bool isOnline; // для приватных чатов
+
+  // --- ДОБАВЛЕНО: отсутствующие поля ---
   final bool isMuted; // НОВОЕ
   final bool isArchived; // НОВОЕ
   final bool isFavorite; // НОВОЕ
   final String? mutedUntil; // может быть null, формат даты/времени
+  final int? lastReadMessageId; // Может быть null
+  // --- /ДОБАВЛЕНО ---
 
   Chat({
     required this.id,
@@ -30,10 +32,13 @@ class Chat {
     required this.lastMessageText,
     required this.lastMessageTime,
     required this.isOnline,
+    // --- ИНИЦИАЛИЗАЦИЯ новых полей ---
     this.isMuted = false, // по умолчанию false
     this.isArchived = false, // по умолчанию false
     this.isFavorite = false, // по умолчанию false
     this.mutedUntil,
+    this.lastReadMessageId,
+    // --- /ИНИЦИАЛИЗАЦИЯ ---
   });
 
   factory Chat.fromJson(Map<String, dynamic> json) {
@@ -50,10 +55,13 @@ class Chat {
       lastMessageText: json['last_message_text'] as String? ?? '',
       lastMessageTime: json['last_message_time'] as String? ?? '',
       isOnline: json['is_online'] as bool? ?? false,
+      // --- ЧТЕНИЕ новых полей из JSON ---
       isMuted: json['is_muted'] as bool? ?? false, // НОВОЕ
       isArchived: json['is_archived'] as bool? ?? false, // НОВОЕ
       isFavorite: json['is_favorite'] as bool? ?? false, // НОВОЕ
       mutedUntil: json['muted_until'] as String?, // может быть null
+      lastReadMessageId: json['last_read_message_id'] as int?, // может быть null
+      // --- /ЧТЕНИЕ ---
     );
   }
 
@@ -69,14 +77,17 @@ class Chat {
       'last_message_text': lastMessageText,
       'last_message_time': lastMessageTime,
       'is_online': isOnline,
+      // --- ЗАПИСЬ новых полей в JSON ---
       'is_muted': isMuted, // НОВОЕ
       'is_archived': isArchived, // НОВОЕ
       'is_favorite': isFavorite, // НОВОЕ
       'muted_until': mutedUntil,
+      'last_read_message_id': lastReadMessageId,
+      // --- /ЗАПИСЬ ---
     };
   }
 
-  // --- НОВЫЙ МЕТОД ---
+  // --- ДОБАВЛЕНО: метод copyWith ---
   Chat copyWith({
     String? id,
     String? type,
@@ -92,6 +103,7 @@ class Chat {
     bool? isArchived,
     bool? isFavorite,
     String? mutedUntil,
+    int? lastReadMessageId,
   }) {
     return Chat(
       id: id ?? this.id,
@@ -108,12 +120,13 @@ class Chat {
       isArchived: isArchived ?? this.isArchived,
       isFavorite: isFavorite ?? this.isFavorite,
       mutedUntil: mutedUntil ?? this.mutedUntil,
+      lastReadMessageId: lastReadMessageId ?? this.lastReadMessageId,
     );
   }
-  // --- /НОВЫЙ МЕТОД ---
+  // --- /ДОБАВЛЕНО ---
 
   @override
   String toString() {
-    return 'Chat{id: $id, type: $type, title: $title, unreadCount: $unreadCount, lastMessageText: $lastMessageText, isMuted: $isMuted, isArchived: $isArchived, isFavorite: $isFavorite}';
+    return 'Chat{id: $id, type: $type, title: $title, unreadCount: $unreadCount, lastMessageText: $lastMessageText, isMuted: $isMuted, isArchived: $isArchived, isFavorite: $isFavorite, lastReadMessageId: $lastReadMessageId}';
   }
 }

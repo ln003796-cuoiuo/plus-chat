@@ -1,15 +1,15 @@
-// plus-chat-main/lib/main.dart
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:plus_chat/services/security_service.dart'; // Импортируем наш сервис
 import 'screens/login_screen.dart';
-import 'screens/auth_wrapper.dart'; // Предполагаем, что AuthWrapper теперь обрабатывает проверки
+// УБРАНО: import 'screens/auth_wrapper.dart'; // Предполагаем, что AuthWrapper теперь обрабатывает проверки
 import 'services/update_service.dart';
 import 'models/chat.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Обязательно для асинхронных операций перед runApp
 
-  // Проверяем безопасность перед запуском приложения
+  // Проверяем безопасность перед запуском приложения (предполагая, что root_checker убран)
   bool isSecure = await SecurityService.checkAll();
   if (!isSecure) {
     runApp(const InsecureApp());
@@ -40,13 +40,14 @@ class PlusChatApp extends StatelessWidget {
       ),
       routes: {
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
-        '/setup': (context) => const SetupScreen(),
-        '/home': (context) => const AuthWrapper(), // AuthWrapper теперь центральный экран
+        // УБРАНО: '/register': (context) => const RegisterScreen(),
+        // УБРАНО: '/setup': (context) => const SetupScreen(),
+        // '/home': (context) => const AuthWrapper(), // AuthWrapper теперь центральный экран
         // ... другие маршруты
       },
-      // Устанавливаем AuthWrapper как начальный маршрут
-      initialRoute: '/home',
+      // Устанавливаем LoginScreen как начальный маршрут, так как другие экраны отсутствуют
+      initialRoute: '/login', // Или '/', если хотите, чтобы LoginScreen был корневым
+      // home: const LoginScreen(), // Альтернатива initialRoute, если не планируете маршруты
     );
   }
 }
@@ -96,15 +97,11 @@ class InsecureApp extends StatelessWidget {
                     // Завершаем приложение
                     // В мобильных приложениях нет стандартного способа "завершить процесс",
                     // но можно скрыть приложение или вызвать SystemChannels.platform.
-                    // Navigator.of(context).pop(); // Не сработает, так как это главный экран.
-                    // SystemChannels.platform.invokeMethod('SystemNavigator.pop'); // Устарело
-                    // Рекомендуется просто не давать доступ к остальному функционалу.
                     // Для полного завершения можно использовать пакет flutter_exit_app.
                     // Установите: flutter pub add flutter_exit_app
                     // И используйте: import 'package:flutter_exit_app/flutter_exit_app.dart';
                     // FlutterExitApp.exitApp();
                     // Пока просто оставим кнопку без действия, приложение "зависнет".
-                    // В реальности, дальнейший функционал будет недоступен.
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
