@@ -1,16 +1,17 @@
-// lib/screens/home_screen.dart
-import 'package:flutter/material.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:plus_chat/services/api_service.dart';
-import 'package:plus_chat/services/auth_service.dart';
-import 'package:plus_chat/models/chat.dart';
-import 'package:plus_chat/models/user.dart';
-import 'package:plus_chat/screens/chat_screen.dart';
-import 'package:plus_chat/screens/profile_screen.dart';
-import 'package:plus_chat/screens/friends_screen.dart';
-import 'package:plus_chat/screens/create_chat_screen.dart';
-import 'package:plus_chat/widgets/app_scaffold.dart';
+// --- ДОБАВЛЕНО: импорт Timer ---
+import 'dart:async';
+// --- /ДОБАВЛЕНО ---
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
+import '../models/chat.dart';
+import '../models/user.dart';
+import 'chat_screen.dart';
+import 'profile_screen.dart';
+import 'friends_screen.dart';
+import 'create_chat_screen.dart';
+import '../widgets/app_scaffold.dart';
 import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
