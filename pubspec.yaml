@@ -34,18 +34,21 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  # --- ДОБАВЛЕНА ЗАВИСИМОСТЬ ---
+  flutter_launcher_icons: ^0.13.1
+  # --- /ДОБАВЛЕНА ЗАВИСИМОСТЬ ---
 
 flutter:
   uses-material-design: true
   assets:
     - assets/
 
-# --- УДАЛИМ ЭТОТ БЛОК ---
-# flutter_launcher_icons:
-#   android: true
-#   ios: false
-#   image_path: "assets/icon.png"
-#   min_sdk_android: 21
-#   adaptive_icon_background: "#075E54"
-#   adaptive_icon_foreground: "assets/icon.png"
-# --- /УДАЛИМ ЭТОТ БЛОК ---
+# --- КОНФИГУРАЦИЯ ПЛАГИНА ---
+flutter_launcher_icons:
+  android: true
+  ios: false # Установите в true, если нужно для iOS
+  image_path: "assets/icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#075E54"
+  adaptive_icon_foreground: "assets/icon.png"
+# --- /КОНФИГУРАЦИЯ ПЛАГИНА ---
