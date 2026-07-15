@@ -1,23 +1,23 @@
+// lib/models/chat.dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'user.dart';
+
 class Chat {
   final String id;
-  final String type;
-  final String? title;
+  final String type; // private, group, channel
+  final String? title; // может быть null для приватных чатов
   final String? description;
   final String? avatarUrl;
-  final String? companionId;
-  final String? companionName;
-  final String? companionUsername;
-  final String? companionAvatarUrl;
-  final bool isOnline;
-  final String? lastMessage;
-  final String? lastMessageAt;
-  final String? lastMessageSenderName;
+  final List<User>? members; // может быть null для каналов/ботов?
   final int unreadCount;
-  final bool isMuted;
-  final bool isArchived;
-  final bool isFavorite;
-  final bool isPinned;
-  final int membersCount;
+  final String lastMessageText;
+  final String lastMessageTime;
+  final bool isOnline; // для приватных чатов
+  final bool isMuted; // НОВОЕ
+  final bool isArchived; // НОВОЕ
+  final bool isFavorite; // НОВОЕ
+  final String? mutedUntil; // может быть null, формат даты/времени
 
   Chat({
     required this.id,
@@ -25,123 +25,95 @@ class Chat {
     this.title,
     this.description,
     this.avatarUrl,
-    this.companionId,
-    this.companionName,
-    this.companionUsername,
-    this.companionAvatarUrl,
-    this.isOnline = false,
-    this.lastMessage,
-    this.lastMessageAt,
-    this.lastMessageSenderName,
-    this.unreadCount = 0,
-    this.isMuted = false,
-    this.isArchived = false,
-    this.isFavorite = false,
-    this.isPinned = false,
-    this.membersCount = 0,
+    this.members,
+    required this.unreadCount,
+    required this.lastMessageText,
+    required this.lastMessageTime,
+    required this.isOnline,
+    this.isMuted = false, // по умолчанию false
+    this.isArchived = false, // по умолчанию false
+    this.isFavorite = false, // по умолчанию false
+    this.mutedUntil,
   });
 
   factory Chat.fromJson(Map<String, dynamic> json) {
-    final companion = json['companion'] as Map<String, dynamic>?;
     return Chat(
-      id: json['id']?.toString() ?? '',
-      type: json['type'] ?? 'private',
-      title: json['title'],
-      description: json['description'],
-      avatarUrl: json['avatar_url'] ?? json['avatarUrl'],
-      companionId: companion?['id']?.toString(),
-      companionName: companion != null
-          ? '${companion['first_name'] ?? ''} ${companion['last_name'] ?? ''}'.trim()
-          : json['display_name'],
-      companionUsername: companion?['username'],
-      companionAvatarUrl: companion?['avatar_url'] ?? companion?['avatarUrl'],
-      isOnline: companion?['is_online'] == true || companion?['online_status'] == 'online',
-      lastMessage: json['last_message'],
-      lastMessageAt: json['last_message_at'] ?? json['lastMessageAt'],
-      lastMessageSenderName: json['last_message_sender_name'],
-      unreadCount: (json['unread_count'] ?? json['unreadCount'] ?? 0) is int
-          ? json['unread_count'] ?? json['unreadCount'] ?? 0
-          : int.tryParse((json['unread_count'] ?? json['unreadCount'] ?? 0).toString()) ?? 0,
-      isMuted: json['is_muted'] == true || json['isMuted'] == true,
-      isArchived: json['is_archived'] == true || json['isArchived'] == true,
-      isFavorite: json['is_favorite'] == true || json['isFavorite'] == true,
-      isPinned: json['is_pinned'] == true || json['isPinned'] == true,
-      membersCount: (json['members_count'] ?? json['membersCount'] ?? 0) is int
-          ? json['members_count'] ?? json['membersCount'] ?? 0
-          : int.tryParse((json['members_count'] ?? json['membersCount'] ?? 0).toString()) ?? 0,
+      id: json['id'] as String,
+      type: json['type'] as String,
+      title: json['title'] as String?,
+      description: json['description'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      members: (json['members'] as List<dynamic>?)
+          ?.map((memberJson) => User.fromJson(memberJson))
+          .toList(),
+      unreadCount: json['unread_count'] as int? ?? 0,
+      lastMessageText: json['last_message_text'] as String? ?? '',
+      lastMessageTime: json['last_message_time'] as String? ?? '',
+      isOnline: json['is_online'] as bool? ?? false,
+      isMuted: json['is_muted'] as bool? ?? false, // НОВОЕ
+      isArchived: json['is_archived'] as bool? ?? false, // НОВОЕ
+      isFavorite: json['is_favorite'] as bool? ?? false, // НОВОЕ
+      mutedUntil: json['muted_until'] as String?, // может быть null
     );
   }
 
-  String get displayName {
-    if (type == 'private') {
-      return companionName ?? companionUsername ?? 'Пользователь';
-    }
-    return title ?? 'Без названия';
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'type': type,
+      'title': title,
+      'description': description,
+      'avatar_url': avatarUrl,
+      'members': members?.map((member) => member.toJson()).toList(),
+      'unread_count': unreadCount,
+      'last_message_text': lastMessageText,
+      'last_message_time': lastMessageTime,
+      'is_online': isOnline,
+      'is_muted': isMuted, // НОВОЕ
+      'is_archived': isArchived, // НОВОЕ
+      'is_favorite': isFavorite, // НОВОЕ
+      'muted_until': mutedUntil,
+    };
   }
 
-  String get initial {
-    if (type == 'private') {
-      if (companionName != null && companionName!.isNotEmpty) {
-        final parts = companionName!.split(' ');
-        return parts.first.isNotEmpty ? parts.first[0].toUpperCase() : '?';
-      }
-      if (companionUsername != null && companionUsername!.isNotEmpty) {
-        return companionUsername![0].toUpperCase();
-      }
-      return '?';
-    }
-    if (title != null && title!.isNotEmpty) {
-      return title![0].toUpperCase();
-    }
-    return '?';
+  // --- НОВЫЙ МЕТОД ---
+  Chat copyWith({
+    String? id,
+    String? type,
+    String? title,
+    String? description,
+    String? avatarUrl,
+    List<User>? members,
+    int? unreadCount,
+    String? lastMessageText,
+    String? lastMessageTime,
+    bool? isOnline,
+    bool? isMuted,
+    bool? isArchived,
+    bool? isFavorite,
+    String? mutedUntil,
+  }) {
+    return Chat(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      members: members ?? this.members,
+      unreadCount: unreadCount ?? this.unreadCount,
+      lastMessageText: lastMessageText ?? this.lastMessageText,
+      lastMessageTime: lastMessageTime ?? this.lastMessageTime,
+      isOnline: isOnline ?? this.isOnline,
+      isMuted: isMuted ?? this.isMuted,
+      isArchived: isArchived ?? this.isArchived,
+      isFavorite: isFavorite ?? this.isFavorite,
+      mutedUntil: mutedUntil ?? this.mutedUntil,
+    );
   }
+  // --- /НОВЫЙ МЕТОД ---
 
-  String get lastMessageTimeFormatted {
-    if (lastMessageAt == null) return '';
-    try {
-      final date = DateTime.parse(lastMessageAt!);
-      final now = DateTime.now();
-      final diff = now.difference(date);
-      if (diff.inDays == 0) {
-        return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-      } else if (diff.inDays == 1) {
-        return 'Вчера';
-      } else if (diff.inDays < 7) {
-        const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-        return days[date.weekday - 1];
-      } else {
-        return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}';
-      }
-    } catch (_) {
-      return '';
-    }
-  }
-
-  ChatType get chatType {
-    switch (type) {
-      case 'group':
-        return ChatType.group;
-      case 'channel':
-        return ChatType.channel;
-      default:
-        return ChatType.private;
-    }
-  }
-}
-
-enum ChatType {
-  private,
-  group,
-  channel;
-
-  String get label {
-    switch (this) {
-      case ChatType.private:
-        return 'Личный';
-      case ChatType.group:
-        return 'Группа';
-      case ChatType.channel:
-        return 'Канал';
-    }
+  @override
+  String toString() {
+    return 'Chat{id: $id, type: $type, title: $title, unreadCount: $unreadCount, lastMessageText: $lastMessageText, isMuted: $isMuted, isArchived: $isArchived, isFavorite: $isFavorite}';
   }
 }

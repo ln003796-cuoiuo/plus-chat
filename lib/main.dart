@@ -1,24 +1,21 @@
+// plus-chat-main/lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:plus_chat/services/security_service.dart'; // Импортируем наш сервис
 import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
-import 'screens/verify_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/friends_screen.dart';
-import 'screens/contacts_screen.dart';
-import 'screens/search_screen.dart';
-import 'screens/profile_screen.dart';
-import 'screens/settings_screen.dart';
-import 'screens/chat_screen.dart';
-import 'screens/gifts_screen.dart';
-import 'screens/archived_chats_screen.dart';
-import 'screens/change_password_screen.dart';
-import 'screens/user_profile_screen.dart';
-import 'screens/search_chats_screen.dart';
-import 'services/auth_service.dart';
+import 'screens/auth_wrapper.dart'; // Предполагаем, что AuthWrapper теперь обрабатывает проверки
 import 'services/update_service.dart';
 import 'models/chat.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Обязательно для асинхронных операций перед runApp
+
+  // Проверяем безопасность перед запуском приложения
+  bool isSecure = await SecurityService.checkAll();
+  if (!isSecure) {
+    runApp(const InsecureApp());
+    return; // Выходим, если проверка не пройдена
+  }
+
   runApp(const PlusChatApp());
 }
 
@@ -44,91 +41,82 @@ class PlusChatApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/friends': (context) => const FriendsScreen(),
-        '/contacts': (context) => const ContactsScreen(),
-        '/search': (context) => const SearchScreen(),
-        '/profile': (context) => const ProfileScreen(),
-        '/settings': (context) => const SettingsScreen(),
-        '/gifts': (context) => const GiftsScreen(),
-        '/archived': (context) => const ArchivedChatsScreen(),
-        '/change-password': (context) => const ChangePasswordScreen(),
+        '/setup': (context) => const SetupScreen(),
+        '/home': (context) => const AuthWrapper(), // AuthWrapper теперь центральный экран
+        // ... другие маршруты
       },
-      onGenerateRoute: (settings) {
-        if (settings.name == '/chat') {
-          final chat = settings.arguments as Chat;
-          return MaterialPageRoute(
-            builder: (context) => ChatScreen(chat: chat),
-          );
-        }
-        if (settings.name == '/user-profile') {
-          final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder: (context) => UserProfileScreen(
-              userId: args['userId'] as String,
-            ),
-          );
-        }
-        if (settings.name == '/verify') {
-          final args = settings.arguments as Map<String, dynamic>;
-          return MaterialPageRoute(
-            builder: (context) => VerifyScreen(
-              email: args['email'] as String,
-              type: args['type'] as String,
-            ),
-          );
-        }
-        return null;
-      },
-      home: const AuthWrapper(),
+      // Устанавливаем AuthWrapper как начальный маршрут
+      initialRoute: '/home',
     );
   }
 }
 
-class AuthWrapper extends StatefulWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
-}
-
-class _AuthWrapperState extends State<AuthWrapper> {
-  @override
-  void initState() {
-    super.initState();
-    _checkUpdate();
-  }
-
-  Future<void> _checkUpdate() async {
-    // Проверяем обновления в фоне
-    final info = await UpdateService.checkForUpdate();
-    if (info != null && info.needsUpdate && mounted) {
-      // ✅ Используем context из build метода через WidgetsBinding
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          UpdateService.showUpdateDialog(context, info);
-        }
-      });
-    }
-  }
+// --- Экран, отображаемый при обнаружении проблем с безопасностью ---
+class InsecureApp extends StatelessWidget {
+  const InsecureApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: AuthService.isLoggedIn(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (snapshot.data == true) {
-          return const HomeScreen();
-        }
-
-        return const LoginScreen();
-      },
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.black, // Темный фон для драматического эффекта
+        body: Center(
+          child: Container(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.security,
+                  color: Colors.red,
+                  size: 80,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Приложение заблокировано',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Пользователям с root на телефоне или с патченным приложением доступ к Плюс Чат запрещён.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    // Завершаем приложение
+                    // В мобильных приложениях нет стандартного способа "завершить процесс",
+                    // но можно скрыть приложение или вызвать SystemChannels.platform.
+                    // Navigator.of(context).pop(); // Не сработает, так как это главный экран.
+                    // SystemChannels.platform.invokeMethod('SystemNavigator.pop'); // Устарело
+                    // Рекомендуется просто не давать доступ к остальному функционалу.
+                    // Для полного завершения можно использовать пакет flutter_exit_app.
+                    // Установите: flutter pub add flutter_exit_app
+                    // И используйте: import 'package:flutter_exit_app/flutter_exit_app.dart';
+                    // FlutterExitApp.exitApp();
+                    // Пока просто оставим кнопку без действия, приложение "зависнет".
+                    // В реальности, дальнейший функционал будет недоступен.
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Закрыть'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
