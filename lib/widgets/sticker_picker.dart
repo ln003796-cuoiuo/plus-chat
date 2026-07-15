@@ -1,17 +1,17 @@
+// lib/widgets/sticker_picker.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
 class StickerPicker extends StatefulWidget {
-  final Function(Map<String, dynamic> sticker, int packId) onStickerSelected;
+  final Function(Map<String, dynamic>, int) onStickerSelected;
 
-  const StickerPicker({super.key, required this.onStickerSelected});
+  const StickerPicker({Key? key, required this.onStickerSelected}) : super(key: key);
 
   @override
   State<StickerPicker> createState() => _StickerPickerState();
 }
 
-class _StickerPickerState extends State<StickerPicker>
-    with SingleTickerProviderStateMixin {
+class _StickerPickerState extends State<StickerPicker> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Map<String, dynamic>> _installedPacks = [];
   List<Map<String, dynamic>> _allPacks = [];
@@ -21,32 +21,7 @@ class _StickerPickerState extends State<StickerPicker>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    setState(() => _loading = true);
-    try {
-      final installed = await ApiService.getInstalledPacks();
-      final all = await ApiService.getStickerPacks();
-      if (mounted) {
-        setState(() {
-          _installedPacks = installed;
-          _allPacks = all;
-          _loading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка загрузки: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    _loadStickerPacks();
   }
 
   @override
@@ -55,81 +30,62 @@ class _StickerPickerState extends State<StickerPicker>
     super.dispose();
   }
 
+  Future<void> _loadStickerPacks() async {
+    try {
+      final installedRes = await ApiService.getInstalledStickerPacks();
+      final allRes = await ApiService.getStickers();
+
+      if (mounted) {
+        setState(() {
+          _installedPacks = (installedRes['packs'] as List? ?? []).cast<Map<String, dynamic>>();
+          _allPacks = (allRes['packs'] as List? ?? []).cast<Map<String, dynamic>>();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      print('Ошибка загрузки паков стикеров: $e');
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 400,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          // Заголовок
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Theme.of(context).dividerColor),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.emoji_emotions, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Стикеры',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-          // Вкладки
-          TabBar(
+    return Column(
+      children: [
+        TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Мои'),
+            Tab(text: 'Все'),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
             controller: _tabController,
-            tabs: const [
-              Tab(text: 'Мои'),
-              Tab(text: 'Все'),
+            children: [
+              _buildPackList(_installedPacks, true),
+              _buildPackList(_allPacks, false),
             ],
           ),
-
-          // Контент
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildPacksList(_installedPacks),
-                      _buildPacksList(_allPacks),
-                    ],
-                  ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildPacksList(List<Map<String, dynamic>> packs) {
+  Widget _buildPackList(List<Map<String, dynamic>> packs, bool isInstalledList) {
     if (packs.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.emoji_emotions_outlined,
-                size: 64, color: Colors.grey[400]),
+            Icon(Icons.sticky_note_2_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              'Нет доступных паков',
+              isInstalledList ? 'Нет установленных паков' : 'Нет доступных паков',
               style: TextStyle(color: Colors.grey[600], fontSize: 16),
             ),
           ],
@@ -144,67 +100,43 @@ class _StickerPickerState extends State<StickerPicker>
         final packId = pack['id'] as int;
         final stickers = pack['stickers'] as List? ?? [];
 
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        return Card(
+          margin: const EdgeInsets.all(8),
+          child: ExpansionTile(
+            title: Text(pack['name'] ?? 'Пак ${packId}'),
+            subtitle: Text('${stickers.length} стикеров'),
             children: [
-              // Название пака
-              Row(
-                children: [
-                  Text(
-                    pack['name'] as String? ?? 'Пак',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+              SizedBox(
+                height: 100, // Высота сетки стикеров
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(), // Отключаем скролл внутри сетки
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 5, // Количество стикеров в строке
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
                   ),
-                  const Spacer(),
-                  if (pack['is_installed'] == true)
-                    const Icon(Icons.check_circle,
-                        color: Colors.green, size: 20),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // Стикеры
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: (stickers as List).map((sticker) {
-                  return GestureDetector(
-                    onTap: () {
-                      widget.onStickerSelected(
-                        sticker as Map<String, dynamic>,
-                        packId,
-                      );
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
+                  itemCount: stickers.length,
+                  itemBuilder: (context, stickerIndex) {
+                    final sticker = stickers[stickerIndex];
+                    return GestureDetector(
+                      onTap: () => widget.onStickerSelected(sticker, packId),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.network(
+                            sticker['file_url'],
+                            fit: BoxFit.cover,
                           ),
-                        ],
+                        ),
                       ),
-                      child: Image.network(
-                        sticker['file_url'] as String? ?? '',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  },
+                ),
               ),
             ],
           ),
