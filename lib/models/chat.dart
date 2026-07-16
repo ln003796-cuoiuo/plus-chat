@@ -1,5 +1,9 @@
 // lib/models/chat.dart
-// ... (импорты)
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+// --- ДОБАВЛЕНО: импорт User ---
+import 'user.dart';
+// --- /ДОБАВЛЕНО ---
 
 class Chat {
   final String id;
@@ -7,13 +11,15 @@ class Chat {
   final String? title; // может быть null для приватных чатов
   final String? description;
   final String? avatarUrl;
+  // --- ИСПРАВЛЕНО: теперь List<User>? правильно типизован ---
   final List<User>? members; // может быть null для каналов/ботов?
+  // --- /ИСПРАВЛЕНО ---
   final int unreadCount;
   final String lastMessageText;
   final String lastMessageTime;
   final bool isOnline; // для приватных чатов
 
-  // --- ДОБАВЛЕНО: отсутствующие поля ---
+  // --- ДОБАВЛЕНО: отсутствующие поля из предыдущего обновления ---
   final bool isMuted; // НОВОЕ
   final bool isArchived; // НОВОЕ
   final bool isFavorite; // НОВОЕ
@@ -27,7 +33,9 @@ class Chat {
     this.title,
     this.description,
     this.avatarUrl,
+    // --- ИСПРАВЛЕНО: инициализация members ---
     this.members,
+    // --- /ИСПРАВЛЕНО ---
     required this.unreadCount,
     required this.lastMessageText,
     required this.lastMessageTime,
@@ -48,9 +56,11 @@ class Chat {
       title: json['title'] as String?,
       description: json['description'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      // --- ИСПРАВЛЕНО: десериализация members ---
       members: (json['members'] as List<dynamic>?)
           ?.map((memberJson) => User.fromJson(memberJson))
           .toList(),
+      // --- /ИСПРАВЛЕНО ---
       unreadCount: json['unread_count'] as int? ?? 0,
       lastMessageText: json['last_message_text'] as String? ?? '',
       lastMessageTime: json['last_message_time'] as String? ?? '',
@@ -72,7 +82,9 @@ class Chat {
       'title': title,
       'description': description,
       'avatar_url': avatarUrl,
+      // --- ИСПРАВЛЕНО: сериализация members ---
       'members': members?.map((member) => member.toJson()).toList(),
+      // --- /ИСПРАВЛЕНО ---
       'unread_count': unreadCount,
       'last_message_text': lastMessageText,
       'last_message_time': lastMessageTime,
