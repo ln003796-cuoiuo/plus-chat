@@ -1,3 +1,7 @@
+// lib/models/user.dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
 class User {
   final String id;
   final String? email;
@@ -35,6 +39,10 @@ class User {
   final String? github;
   final String? linkedin;
 
+  // --- НОВОЕ ПОЛЕ ---
+  final int? lastReadMessageId;
+  // --- /НОВОЕ ПОЛЕ ---
+
   User({
     required this.id,
     this.email,
@@ -71,6 +79,9 @@ class User {
     this.twitter,
     this.github,
     this.linkedin,
+    // --- ИНИЦИАЛИЗАЦИЯ НОВОГО ПОЛЯ ---
+    this.lastReadMessageId,
+    // --- /ИНИЦИАЛИЗАЦИЯ ---
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -120,6 +131,9 @@ class User {
       twitter: json['twitter'],
       github: json['github'],
       linkedin: json['linkedin'],
+      // --- ЧТЕНИЕ НОВОГО ПОЛЯ ИЗ JSON ---
+      lastReadMessageId: json['last_read_message_id'] as int?,
+      // --- /ЧТЕНИЕ ---
     );
   }
 
@@ -159,6 +173,9 @@ class User {
       'twitter': twitter,
       'github': github,
       'linkedin': linkedin,
+      // --- ЗАПИСЬ НОВОГО ПОЛЯ В JSON ---
+      'last_read_message_id': lastReadMessageId,
+      // --- /ЗАПИСЬ ---
     };
   }
 
@@ -176,6 +193,7 @@ class User {
   bool get isOnline => onlineStatus == 'online';
   bool get isPremium => premiumStatus != 'free';
 
+  // --- ОБНОВЛЁН МЕТОД copyWith ---
   User copyWith({
     String? id,
     String? email,
@@ -186,6 +204,9 @@ class User {
     String? avatarUrl,
     String? onlineStatus,
     int? plusCoins,
+    // --- ДОБАВЛЕН ПАРАМЕТР ---
+    int? lastReadMessageId,
+    // --- /ДОБАВЛЕН ПАРАМЕТР ---
   }) {
     return User(
       id: id ?? this.id,
@@ -197,6 +218,9 @@ class User {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       onlineStatus: onlineStatus ?? this.onlineStatus,
       plusCoins: plusCoins ?? this.plusCoins,
+      // --- ПЕРЕДАЁМ НОВОЕ ЗНАЧЕНИЕ ---
+      lastReadMessageId: lastReadMessageId ?? this.lastReadMessageId,
+      // --- /ПЕРЕДАЁМ ---
       middleName: middleName,
       nickname: nickname,
       birthDate: birthDate,
@@ -224,4 +248,5 @@ class User {
       linkedin: linkedin,
     );
   }
+  // --- /ОБНОВЛЁН МЕТОД ---
 }
