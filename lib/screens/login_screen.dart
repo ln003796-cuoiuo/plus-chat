@@ -1,7 +1,9 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart'; // Импортируем AuthService
+import '../services/auth_service.dart';
+import 'register_screen.dart'; // Предполагаем, что файл RegisterScreen существует
+import 'register_verification_screen.dart'; // Предполагаем, что файл RegisterVerificationScreen существует
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,8 +14,10 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _identifierController = TextEditingController();
-  String _loginMethod = 'code'; // 'code' или 'password'
+  final _identifierController = TextEditingController(); // Для Email/Телефона при входе по паролю
+  final _passwordController = TextEditingController(); // Для Пароля
+  final _codeIdentifierController = TextEditingController(); // Для Email/Телефона при входе по коду
+  bool _showPassword = false; // Для скрытия/показа пароля
   bool _loading = false;
 
   // --- ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ СОЗДАНИЯ SnackBar ---
@@ -25,28 +29,26 @@ class _LoginScreenState extends State<LoginScreen> {
   }
   // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
 
-  Future<void> _requestVerificationCode() async {
+  Future<void> _loginWithPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
     try {
       final identifier = _identifierController.text.trim();
-      final response = await ApiService.login(identifier); // Вызов API для отправки кода
+      final password = _passwordController.text.trim();
+
+      // Вызов API для входа по паролю
+      final response = await ApiService.loginWithPassword(identifier, password);
 
       if (response['success'] == true) {
-        // Перенаправление на экран верификации
-        Navigator.pushNamed(
-          context,
-          '/verify', // Убедитесь, что маршрут '/verify' определён
-          arguments: {
-            'identifier': identifier,
-            'isLogin': true, // Указывает, что это вход, а не регистрация
-          },
-        );
+        // Успешный вход, сохранение токенов и переход в приложение
+        AuthService.saveTokens(response['access_token'], response['refresh_token']);
+        // TODO: Перейти на главный экран (например, /home)
+        // Navigator.pushReplacementNamed(context, '/home');
+        print("Успешный вход по паролю");
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            // --- ИСПРАВЛЕНО: строка 40 (и аналогичные) ---
             _buildErrorSnackBar(response['error'] ?? 'Ошибка при входе'),
           );
         }
@@ -54,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          // --- ИСПРАВЛЕНО: строка 48 (и аналогичные) ---
           _buildErrorSnackBar('Ошибка сети: $e'),
         );
       }
@@ -63,32 +64,44 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loginWithPassword() async {
-    // TODO: Реализовать вход по паролю
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _requestVerificationCode() async {
+    final identifier = _codeIdentifierController.text.trim();
+    if (identifier.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          _buildErrorSnackBar('Введите email или телефон'),
+        );
+      }
+      return;
+    }
 
     setState(() => _loading = true);
     try {
-      final identifier = _identifierController.text.trim();
-      // final password = _passwordController.text; // Нужно добавить контроллер для пароля
-      // final response = await ApiService.loginWithPassword(identifier, password);
+      // Вызов API для отправки кода (предполагается, что login теперь отправляет код)
+      final response = await ApiService.login(identifier);
 
-      // if (response['success'] == true) {
-      //   // Сохранение токенов и переход в приложение
-      //   AuthService.saveTokens(response['access_token'], response['refresh_token']);
-      //   Navigator.pushReplacementNamed(context, '/home');
-      // } else {
-      //   if (mounted) {
-      //     ScaffoldMessenger.of(context).showSnackBar(
-      //       _buildErrorSnackBar(response['error'] ?? 'Ошибка при входе')),
-      //     );
-      //   }
-      // }
+      if (response['success'] == true) {
+        // Успешно отправлен код, перейти к экрану верификации
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RegisterVerificationScreen(
+              emailOrPhone: identifier,
+              isLogin: true, // Передаём, что это вход, а не регистрация
+            ),
+          ),
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            _buildErrorSnackBar(response['error'] ?? 'Ошибка при отправке кода'),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          // --- ИСПРАВЛЕНО: строка, аналогичная 48 ---
-          _buildErrorSnackBar('Ошибка сети: $e'),
+          _buildErrorSnackBar('Ошибка сети при отправке кода: $e'),
         );
       }
     } finally {
@@ -99,13 +112,25 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Вход')),
+      appBar: AppBar(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // --- ЛОГОТИП В ВЕРХНЕЙ ЧАСТИ (ЗАМЕНИТЕ НА СВОЙ ASSET) ---
+            // Image.asset('assets/logo.png', height: 40), // Пример
+            // Или просто текст
+            Text('Плюс Чат', style: Theme.of(context).textTheme.headlineSmall),
+            // --- /ЛОГОТИП ---
+          ],
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
+              // --- ПОЛЯ ДЛЯ ВХОДА ПО ПАРОЛЮ ---
               TextFormField(
                 controller: _identifierController,
                 decoration: const InputDecoration(
@@ -122,46 +147,66 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              ToggleButtons(
-                isSelected: [_loginMethod == 'code', _loginMethod == 'password'],
-                onPressed: (index) {
-                  setState(() {
-                    _loginMethod = index == 0 ? 'code' : 'password';
-                  });
+              TextFormField(
+                controller: _passwordController,
+                decoration: InputDecoration(
+                  labelText: 'Пароль',
+                  prefixIcon: const Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(_showPassword ? Icons.visibility : Icons.visibility_off),
+                    onPressed: () {
+                      setState(() {
+                        _showPassword = !_showPassword;
+                      });
+                    },
+                  ),
+                ),
+                obscureText: !_showPassword,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Введите пароль';
+                  }
+                  // Добавьте валидацию пароля (длина, сложность)
+                  return null;
                 },
-                children: const [
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('По коду')),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('По паролю')),
-                ],
               ),
               const SizedBox(height: 24),
-              if (_loginMethod == 'password') ...[
-                // TextFormField( // Нужно раскомментировать и добавить контроллер для пароля
-                //   controller: _passwordController,
-                //   decoration: const InputDecoration(
-                //     labelText: 'Пароль',
-                //     prefixIcon: Icon(Icons.lock),
-                //   ),
-                //   obscureText: true,
-                //   validator: (value) {
-                //     if (value == null || value.isEmpty) {
-                //       return 'Введите пароль';
-                //     }
-                //     // Добавьте валидацию пароля
-                //     return null;
-                //   },
-                // ),
-                // const SizedBox(height: 16),
-              ],
+              // --- КНОПКА ВОЙТИ ---
               ElevatedButton(
-                onPressed: _loading ? null : (_loginMethod == 'code' ? _requestVerificationCode : _loginWithPassword),
+                onPressed: _loading ? null : _loginWithPassword,
                 child: _loading
                     ? const CircularProgressIndicator()
-                    : Text(_loginMethod == 'code' ? 'Получить код' : 'Войти'),
+                    : const Text('Войти'),
+              ),
+              const SizedBox(height: 24),
+              // --- РАЗДЕЛИТЕЛЬ ---
+              const Divider(thickness: 1),
+              const SizedBox(height: 8),
+              const Text('Или'),
+              const SizedBox(height: 8),
+              const Divider(thickness: 1),
+              const SizedBox(height: 24),
+              // --- ПОЛЕ ДЛЯ ВХОДА ПО КОДУ ---
+              TextFormField(
+                controller: _codeIdentifierController,
+                decoration: const InputDecoration(
+                  labelText: 'Email или Телефон (для входа по коду)',
+                  prefixIcon: Icon(Icons.alternate_email),
+                ),
+                keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
+              // --- КНОПКА ВОЙТИ ПО КОДУ ---
+              ElevatedButton(
+                onPressed: _loading ? null : _requestVerificationCode,
+                child: _loading
+                    ? const CircularProgressIndicator()
+                    : const Text('Войти по коду'),
+              ),
+              const SizedBox(height: 16),
+              // --- КНОПКА ЗАРЕГИСТРИРОВАТЬСЯ ---
               TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/register'), // Убедитесь, что маршрут '/register' определён
+                onPressed: () => Navigator.pushNamed(context, '/register'), // Предполагаем маршрут /register
                 child: const Text('Нет аккаунта? Зарегистрироваться'),
               ),
             ],
