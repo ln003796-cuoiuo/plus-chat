@@ -1,16 +1,16 @@
-// lib/screens/setup_screen.dart (предполагаемое имя для файла настройки профиля после регистрации)
+// lib/screens/setup_profile_screen.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 
-class SetupScreen extends StatefulWidget {
-  const SetupScreen({super.key});
+class SetupProfileScreen extends StatefulWidget {
+  const SetupProfileScreen({super.key});
 
   @override
-  State<SetupScreen> createState() => _SetupScreenState();
+  State<SetupProfileScreen> createState() => _SetupProfileScreenState();
 }
 
-class _SetupScreenState extends State<SetupScreen> {
+class _SetupProfileScreenState extends State<SetupProfileScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _usernameController = TextEditingController();
@@ -30,7 +30,7 @@ class _SetupScreenState extends State<SetupScreen> {
       final user = await ApiService.getMe();
       if (mounted) {
         setState(() {
-          _firstNameController.text = user.firstName ?? '';
+          _firstNameController.text = user.firstName;
           _lastNameController.text = user.lastName ?? '';
           _usernameController.text = user.username ?? '';
           _bioController.text = user.bio ?? '';
@@ -55,19 +55,22 @@ class _SetupScreenState extends State<SetupScreen> {
       );
       if (res['success'] == true) {
         // Профиль успешно обновлен
-        // AuthService.updateCurrentUser(res['user']); // Обновить кэш пользователя
+        AuthService.updateCurrentUser(res['user']); // Обновить кэш пользователя
         // Navigator.pushReplacementNamed(context, '/home'); // Перейти на главный экран
+        print("Профиль обновлён");
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(res['error'] ?? 'Ошибка при сохранении профиля'), backgroundColor: Colors.red),
+            SnackBar(content: Text(res['error'] ?? 'Ошибка при сохранении профиля')),
+            // backgroundColor: Colors.red, // Не используется
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка сети: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Ошибка сети: $e')),
+          // backgroundColor: Colors.red, // Не используется
         );
       }
     } finally {

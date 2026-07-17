@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import 'register_screen.dart'; // Предполагаем, что файл RegisterScreen существует
-import 'register_verification_screen.dart'; // Предполагаем, что файл RegisterVerificationScreen существует
+// УБРАНО: import 'register_verification_screen.dart'; // Предполагаем, что маршрут определён
+// УБРАНО: import 'setup_profile_screen.dart'; // Не используется в этом файле
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -85,10 +85,9 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => RegisterVerificationScreen(
-              emailOrPhone: identifier,
-              isLogin: true, // Передаём, что это вход, а не регистрация
-            ),
+            // --- ИСПРАВЛЕНО: передаём identifier и isLogin: true ---
+            builder: (context) => RegisterVerificationScreen(identifier, isLogin: true), // Передаём identifier как позиционный аргумент, isLogin как именованный
+            // --- /ИСПРАВЛЕНО ---
           ),
         );
       } else {
