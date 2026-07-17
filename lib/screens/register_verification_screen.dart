@@ -3,14 +3,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-// УБРАНО: import 'package:plus_chat/screens/register_setup_screen.dart'; // Предполагаем, что маршрут определён
-import 'setup_profile_screen.dart'; // Используем SetupScreen как ввод данных
+import 'setup_profile_screen.dart'; // Импортируем SetupProfileScreen
 
 class RegisterVerificationScreen extends StatefulWidget {
-  final String emailOrPhone; // Принимаем emailOrPhone как позиционный аргумент
-  final bool isLogin; // Принимаем флаг, что это вход, а не регистрация
+  final String emailOrPhone; // Принимаем emailOrPhone как именованный аргумент
+  final String type; // 'login' или 'register', как именованный аргумент
 
-  const RegisterVerificationScreen(this.emailOrPhone, {this.isLogin = false, super.key}); // Обновлённый конструктор
+  const RegisterVerificationScreen({
+    super.key,
+    required this.emailOrPhone, // Именованный аргумент
+    required this.type,        // Именованный аргумент
+  });
 
   @override
   State<RegisterVerificationScreen> createState() => _RegisterVerificationScreenState();
@@ -18,10 +21,127 @@ class RegisterVerificationScreen extends StatefulWidget {
 
 class _RegisterVerificationScreenState extends State<RegisterVerificationScreen> {
   final _codeController = TextEditingController();
-  Timer? _resendTimer;
+  bool _isLoading = false;
   int _resendCooldown = 60;
-  bool _isResendActive = false;
-  bool _loading = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startResendTimer();
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startResendTimer() {
+    _timer?.cancel();
+    setState(() => _resendCooldown = 60);
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_resendCooldown > 0) {
+        setState(() => _resendCooldown--);
+      } else {
+        t.cancel();
+      }
+    });
+  }
+
+  Future<void> _verifyCode() async {
+    final code = _codeController.text.trim();
+    if (code.length != 6) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          _buildErrorSnackBar('Введите 6-значный код'),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Вызов API для верификации кода
+      final response = await ApiService.verifyCode(widget.emailOrPhone, code);
+
+      if (response['success'] == true) {
+        if (widget.type == 'login') {
+          // Успешная верификация для входа
+          AuthService.saveTokens(response['access_token'], response['refresh_token']);
+          // TODO: Перейти на главный экран
+          // Navigator.pushReplacementNamed(context, '/home');
+          print("Успешный вход по коду из RegisterVerificationScreen");
+          // Пример перехода:
+          // Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        } else if (widget.type == 'register') {
+          // Успешная верификация для регистрации
+          // Перейти к настройке профиля
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SetupProfileScreen(),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            _buildErrorSnackBar(
+              response['message'] ??
+                  response['error'] ??
+                  'Ошибка верификации',
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          _buildErrorSnackBar('Ошибка сети: $e'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _resendCode() async {
+    if (_resendCooldown > 0 || _isLoading) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Вызов API для повторной отправки кода
+      final response = await ApiService.login(widget.emailOrPhone);
+
+      if (response['success'] == true) {
+        _startResendTimer();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Код отправлен повторно')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            _buildErrorSnackBar(response['error'] ?? 'Ошибка'),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          _buildErrorSnackBar('Ошибка сети: $e'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   // --- ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ СОЗДАНИЯ SnackBar ---
   SnackBar _buildErrorSnackBar(String message) {
@@ -33,162 +153,67 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
   // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
 
   @override
-  void initState() {
-    super.initState();
-    _startResendTimer();
-  }
-
-  @override
-  void dispose() {
-    _codeController.dispose();
-    _resendTimer?.cancel();
-    super.dispose();
-  }
-
-  void _startResendTimer() {
-    _isResendActive = false;
-    _resendCooldown = 60;
-    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_resendCooldown > 0) {
-        setState(() {
-          _resendCooldown--;
-        });
-      } else {
-        _isResendActive = true;
-        timer.cancel();
-      }
-    });
-  }
-
-  Future<void> _verifyCode() async {
-    final code = _codeController.text.trim();
-    if (code.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          _buildErrorSnackBar('Введите код'),
-        );
-      }
-      return;
-    }
-
-    setState(() => _loading = true);
-    try {
-      // Используем verifyCode из ApiService
-      final response = await ApiService.verifyCode(widget.emailOrPhone, code);
-
-      if (response['success'] == true) {
-        if (widget.isLogin) {
-          // Успешная верификация для входа
-          AuthService.saveTokens(response['access_token'], response['refresh_token']);
-          // TODO: Перейти на главный экран
-          // Navigator.pushReplacementNamed(context, '/home');
-          print("Успешный вход по коду");
-          // Пример перехода:
-          // Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-        } else {
-          // Успешная верификация для регистрации
-          // TODO: Перейти к следующему шагу регистрации (например, SetupProfileScreen)
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SetupProfileScreen(), // Или другой экран
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            _buildErrorSnackBar(response['error'] ?? 'Ошибка при верификации'),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          _buildErrorSnackBar('Ошибка сети: $e'),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  // --- ИСПРАВЛЕНО: resendCode ---
-  Future<void> _resendCode() async {
-    if (!_isResendActive) return;
-
-    setState(() => _loading = true);
-    try {
-      // Для входа по коду: повторно отправляем код на тот же emailOrPhone
-      // Используем login, предполагая, что сервер отправляет код при входе по emailOrPhone без пароля
-      final response = await ApiService.login(widget.emailOrPhone);
-
-      if (response['success'] == true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Код отправлен снова')),
-          );
-        }
-        _startResendTimer(); // Перезапускаем таймер
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            _buildErrorSnackBar(response['error'] ?? 'Ошибка при отправке кода'),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          _buildErrorSnackBar('Ошибка сети при отправке кода: $e'),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-  // --- /ИСПРАВЛЕНО ---
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Подтверждение')),
+      appBar: AppBar(
+        title: const Text('Подтверждение'),
+        // leading можно добавить, если нужна кнопка назад на предыдущий шаг
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Код отправлен на ${widget.emailOrPhone}'),
-            const SizedBox(height: 24),
+            const SizedBox(height: 40),
+            const Icon(Icons.email, size: 80, color: Colors.blue),
+            const SizedBox(height: 20),
+            Text(
+              'Введите код из письма/SMS',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Код отправлен на ${widget.emailOrPhone}',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 40),
             TextField(
               controller: _codeController,
               decoration: const InputDecoration(
                 labelText: 'Код подтверждения',
                 border: OutlineInputBorder(),
+                hintText: '123456',
               ),
               keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 24),
               maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 24,
+                letterSpacing: 8,
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: _loading ? null : _verifyCode,
-              child: _loading
-                  ? const CircularProgressIndicator()
-                  : const Text('Подтвердить'),
+              onPressed: _isLoading ? null : _verifyCode,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Подтвердить', style: TextStyle(fontSize: 16)),
             ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(_isResendActive ? 'Готово!' : 'Отправить снова через $_resendCooldown'),
-                const SizedBox(width: 16),
-                TextButton(
-                  onPressed: (_loading || !_isResendActive) ? null : _resendCode,
-                  child: const Text('Отправить снова'),
-                ),
-              ],
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _resendCooldown > 0 || _isLoading ? null : _resendCode,
+              child: _resendCooldown > 0
+                  ? Text('Отправить код повторно через $_resendCooldown сек')
+                  : const Text('Отправить код повторно'),
             ),
           ],
         ),
