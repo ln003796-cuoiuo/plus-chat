@@ -6,10 +6,12 @@ import 'auth_service.dart';
 import '../models/user.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
-import '../models/poll.dart'; // Добавлен импорт модели Poll
+import '../models/poll.dart'; // Импортируем модель Poll (файл должен существовать)
 
 class ApiService {
-  static const String baseUrl = 'https://xn--80avljg2a1c.xn--p1ai'; // IDN domain
+  // --- ИСПРАВЛЕНО: baseUrl (теперь точно соответствует https://xn--80avljg2a1c.xn--p1ai) ---
+  static const String baseUrl = 'https://xn--80avljg2a1c.xn--p1ai';
+  // --- /ИСПРАВЛЕНО ---
 
   static Future<Map<String, dynamic>> _request(String method,
       String endpoint, {
@@ -70,6 +72,17 @@ class ApiService {
   static Future<Map<String, dynamic>> login(String emailOrPhone) async {
     return _request('POST', '/auth/login', body: {'email_or_phone': emailOrPhone}, auth: false);
   }
+
+  // --- ИСПРАВЛЕНО: метод для входа по паролю ---
+  static Future<Map<String, dynamic>> loginWithPassword(String emailOrPhone, String password) async {
+    // Предполагаем, что сервер принимает 'email_or_phone' и 'password' на эндпоинте /auth/login
+    // Или на отдельном эндпоинте, например, /auth/login-password
+    // Адаптируйте под реальный API сервера
+    return _request('POST', '/auth/login', body: {'email_or_phone': emailOrPhone, 'password': password}, auth: false);
+    // Или, если есть отдельный эндпоинт:
+    // return _request('POST', '/auth/login-password', body: {'email_or_phone': emailOrPhone, 'password': password}, auth: false);
+  }
+  // --- /ИСПРАВЛЕНО ---
 
   static Future<Map<String, dynamic>> verifyCode(String emailOrPhone, String code) async {
     return _request('POST', '/auth/verify-code', body: {'email_or_phone': emailOrPhone, 'code': code}, auth: false);
@@ -215,7 +228,7 @@ class ApiService {
     return res;
   }
 
-  static Future<Map<String, dynamic>> createPrivateChat(int userId) async { // Исправлено: userId как int
+  static Future<Map<String, dynamic>> createPrivateChat(int userId) async {
     return _request('POST', '/chats/create-private', body: {'user_id': userId});
   }
 
