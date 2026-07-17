@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../models/user.dart'; // Импортируем User, если используется setCurrentUser
 
 class SetupProfileScreen extends StatefulWidget {
   const SetupProfileScreen({super.key});
@@ -55,7 +56,12 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
       );
       if (res['success'] == true) {
         // Профиль успешно обновлен
-        AuthService.updateCurrentUser(res['user']); // Обновить кэш пользователя
+        // --- ИСПРАВЛЕНО: AuthService.updateCurrentUser ---
+        // AuthService.updateCurrentUser(res['user']); // Обновить кэш пользователя - МЕТОД НЕ СУЩЕСТВУЕТ
+        // Заменяем на setCurrentUser, если он определён и принимает User
+        final updatedUser = User.fromJson(res['user']); // Преобразуем JSON в объект User
+        AuthService.setCurrentUser(updatedUser); // Обновить кэш текущего пользователя
+        // --- /ИСПРАВЛЕНО ---
         // Navigator.pushReplacementNamed(context, '/home'); // Перейти на главный экран
         print("Профиль обновлён");
       } else {

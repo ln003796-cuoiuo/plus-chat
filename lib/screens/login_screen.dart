@@ -2,8 +2,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import 'register_verification_screen.dart';
-// УБРАНО: import 'register_verification_screen.dart'; // Предполагаем, что маршрут определён
+import 'register_verification_screen.dart'; // Импортируем RegisterVerificationScreen
 // УБРАНО: import 'setup_profile_screen.dart'; // Не используется в этом файле
 
 class LoginScreen extends StatefulWidget {
@@ -86,8 +85,11 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            // --- ИСПРАВЛЕНО: передаём identifier и isLogin: true ---
-            builder: (context) => RegisterVerificationScreen(identifier, isLogin: true), // Передаём identifier как позиционный аргумент, isLogin как именованный
+            // --- ИСПРАВЛЕНО: передаём identifier и type как именованные аргументы ---
+            builder: (context) => RegisterVerificationScreen(
+              emailOrPhone: identifier, // Передаём identifier как именованный аргумент emailOrPhone
+              type: 'login',            // Передаём 'login' как именованный аргумент type
+            ),
             // --- /ИСПРАВЛЕНО ---
           ),
         );
