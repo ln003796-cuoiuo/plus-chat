@@ -21,13 +21,13 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
     try {
       final identifier = _identifierController.text.trim();
-      final response = await ApiService.login(identifier); // Вызов API для отправки кода
+      final response = await ApiService.login(identifier);
 
       if (response['success'] == true) {
         // Перенаправление на экран верификации
         Navigator.pushNamed(
           context,
-          '/verify',
+          '/verify', // Предполагается, что маршрут '/verify' определён
           arguments: {
             'identifier': identifier,
             'isLogin': true, // Указывает, что это вход, а не регистрация
@@ -35,23 +35,32 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         if (mounted) {
+          // --- ИСПРАВЛЕНО: строка 82 ---
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['error'] ?? 'Ошибка при входе')),
-            backgroundColor: Colors.red,
+            _buildErrorSnackBar(response['error'] ?? 'Ошибка при входе'),
           );
         }
       }
     } catch (e) {
       if (mounted) {
+        // --- ИСПРАВЛЕНО: строка 48 ---
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка сети: $e')),
-          backgroundColor: Colors.red,
+          _buildErrorSnackBar('Ошибка сети: $e'),
         );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  // --- ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ СОЗДАНИЯ SnackBar ---
+  SnackBar _buildErrorSnackBar(String message) {
+    return SnackBar(
+      content: Text(message),
+      // backgroundColor больше не используется напрямую
+    );
+  }
+  // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
 
   Future<void> _loginWithPassword() async {
     // TODO: Реализовать вход по паролю
@@ -70,16 +79,14 @@ class _LoginScreenState extends State<LoginScreen> {
       // } else {
       //   if (mounted) {
       //     ScaffoldMessenger.of(context).showSnackBar(
-      //       SnackBar(content: Text(response['error'] ?? 'Ошибка при входе')),
-      //       backgroundColor: Colors.red,
+      //       _buildErrorSnackBar(response['error'] ?? 'Ошибка при входе')),
       //     );
       //   }
       // }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка сети: $e')),
-          backgroundColor: Colors.red,
+          _buildErrorSnackBar('Ошибка сети: $e'),
         );
       }
     } finally {
@@ -152,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/register'),
+                onPressed: () => Navigator.pushNamed(context, '/register'), // Предполагается, что маршрут '/register' определён
                 child: const Text('Нет аккаунта? Зарегистрироваться'),
               ),
             ],
