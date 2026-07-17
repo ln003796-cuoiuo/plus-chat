@@ -3,16 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+// УБРАНО: import 'package:plus_chat/screens/register_setup_screen.dart'; // Предполагаем, что маршрут определён
+import 'setup_profile_screen.dart'; // Используем SetupScreen как ввод данных
 
 class RegisterVerificationScreen extends StatefulWidget {
-  final String identifier;
-  final bool isLogin; // Указывает, что это верификация для входа, а не регистрации
+  final String emailOrPhone; // Принимаем emailOrPhone как позиционный аргумент
+  final bool isLogin; // Принимаем флаг, что это вход, а не регистрация
 
-  const RegisterVerificationScreen({
-    Key? key,
-    required this.identifier,
-    required this.isLogin, // Уточни, нужен ли type, если только для регистрации
-  }) : super(key: key);
+  const RegisterVerificationScreen(this.emailOrPhone, {this.isLogin = false, super.key}); // Обновлённый конструктор
 
   @override
   State<RegisterVerificationScreen> createState() => _RegisterVerificationScreenState();
@@ -20,37 +18,10 @@ class RegisterVerificationScreen extends StatefulWidget {
 
 class _RegisterVerificationScreenState extends State<RegisterVerificationScreen> {
   final _codeController = TextEditingController();
+  Timer? _resendTimer;
+  int _resendCooldown = 60;
+  bool _isResendActive = false;
   bool _loading = false;
-  Timer? _timer;
-  int _secondsLeft = 60; // Таймер для повторной отправки
-  bool _resendEnabled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _startTimer();
-  }
-
-  @override
-  void dispose() {
-    _codeController.dispose();
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _startTimer() {
-    _resendEnabled = false;
-    _secondsLeft = 60;
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _secondsLeft--;
-        if (_secondsLeft <= 0) {
-          _resendEnabled = true;
-          timer.cancel();
-        }
-      });
-    });
-  }
 
   // --- ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ СОЗДАНИЯ SnackBar ---
   SnackBar _buildErrorSnackBar(String message) {
@@ -61,12 +32,40 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
   }
   // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
 
+  @override
+  void initState() {
+    super.initState();
+    _startResendTimer();
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _resendTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startResendTimer() {
+    _isResendActive = false;
+    _resendCooldown = 60;
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_resendCooldown > 0) {
+        setState(() {
+          _resendCooldown--;
+        });
+      } else {
+        _isResendActive = true;
+        timer.cancel();
+      }
+    });
+  }
+
   Future<void> _verifyCode() async {
-    if (_codeController.text.isEmpty) {
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
       if (mounted) {
-        // --- ИСПРАВЛЕНО: строка 40 ---
         ScaffoldMessenger.of(context).showSnackBar(
-          _buildErrorSnackBar('Введите код подтверждения'),
+          _buildErrorSnackBar('Введите код'),
         );
       }
       return;
@@ -74,23 +73,26 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
 
     setState(() => _loading = true);
     try {
-      // Регистрация: verifyCode используется после registerStep1
-      // final response = await ApiService.verifyCode(widget.identifier, _codeController.text);
-
-      // ИЛИ если используется registerStep2:
-      final response = await ApiService.registerStep2(widget.identifier, _codeController.text);
+      // Используем verifyCode из ApiService
+      final response = await ApiService.verifyCode(widget.emailOrPhone, code);
 
       if (response['success'] == true) {
         if (widget.isLogin) {
-          // Успешная верификация кода для *входа*
-          // AuthService.saveTokens(response['access_token'], response['refresh_token']);
+          // Успешная верификация для входа
+          AuthService.saveTokens(response['access_token'], response['refresh_token']);
+          // TODO: Перейти на главный экран
           // Navigator.pushReplacementNamed(context, '/home');
+          print("Успешный вход по коду");
+          // Пример перехода:
+          // Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
         } else {
-          // Успешная верификация кода для *регистрации*
-          // Переход к следующему шагу регистрации (например, SetupProfileScreen)
-          Navigator.pushNamed(
+          // Успешная верификация для регистрации
+          // TODO: Перейти к следующему шагу регистрации (например, SetupProfileScreen)
+          Navigator.push(
             context,
-            '/setup', // Убедитесь, что маршрут '/setup' определён
+            MaterialPageRoute(
+              builder: (context) => const SetupProfileScreen(), // Или другой экран
+            ),
           );
         }
       } else {
@@ -111,15 +113,15 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
     }
   }
 
+  // --- ИСПРАВЛЕНО: resendCode ---
   Future<void> _resendCode() async {
-    if (!_resendEnabled) return;
+    if (!_isResendActive) return;
 
     setState(() => _loading = true);
     try {
-      // Отправляем код заново (предполагается, что на сервере есть эндпоинт resend-verification)
-      // final response = await ApiService.resendVerificationCode(widget.identifier);
-      // Временно используем login для повторной отправки, если сервер поддерживает
-      final response = await ApiService.login(widget.identifier);
+      // Для входа по коду: повторно отправляем код на тот же emailOrPhone
+      // Используем login, предполагая, что сервер отправляет код при входе по emailOrPhone без пароля
+      final response = await ApiService.login(widget.emailOrPhone);
 
       if (response['success'] == true) {
         if (mounted) {
@@ -127,7 +129,7 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
             const SnackBar(content: Text('Код отправлен снова')),
           );
         }
-        _startTimer(); // Перезапускаем таймер
+        _startResendTimer(); // Перезапускаем таймер
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -145,23 +147,18 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
       if (mounted) setState(() => _loading = false);
     }
   }
+  // --- /ИСПРАВЛЕНО ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Подтверждение'),
-      ),
+      appBar: AppBar(title: const Text('Подтверждение')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Введите код, отправленный на\n${widget.identifier}',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Код отправлен на ${widget.emailOrPhone}'),
             const SizedBox(height: 24),
             TextField(
               controller: _codeController,
@@ -172,28 +169,7 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 24),
-              maxLength: 6, // Обычно 6 цифр
-              onChanged: (value) {
-                if (value.length == 6) {
-                  // Автоматически попытаться верифицировать, если код введен полностью
-                  // _verifyCode(); // Опционально
-                }
-              },
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton(
-                  onPressed: _resendEnabled ? _resendCode : null,
-                  child: Text(
-                    _resendEnabled ? 'Отправить снова' : 'Повторить через $_secondsLeft',
-                    style: TextStyle(
-                      color: _resendEnabled ? Theme.of(context).primaryColor : Colors.grey,
-                    ),
-                  ),
-                ),
-              ],
+              maxLength: 6,
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -201,6 +177,18 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
               child: _loading
                   ? const CircularProgressIndicator()
                   : const Text('Подтвердить'),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(_isResendActive ? 'Готово!' : 'Отправить снова через $_resendCooldown'),
+                const SizedBox(width: 16),
+                TextButton(
+                  onPressed: (_loading || !_isResendActive) ? null : _resendCode,
+                  child: const Text('Отправить снова'),
+                ),
+              ],
             ),
           ],
         ),
