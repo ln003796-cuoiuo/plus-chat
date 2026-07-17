@@ -3,16 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import 'setup_profile_screen.dart'; // Или другой начальный экран после регистрации
 
 class RegisterVerificationScreen extends StatefulWidget {
-  final String emailOrPhone;
-  final String type; // 'register' или 'login', если используется для обоих
+  final String identifier;
+  final bool isLogin; // Указывает, что это верификация для входа, а не регистрации
 
   const RegisterVerificationScreen({
     Key? key,
-    required this.emailOrPhone,
-    required this.type, // Уточни, нужен ли type, если только для регистрации
+    required this.identifier,
+    required this.isLogin, // Уточни, нужен ли type, если только для регистрации
   }) : super(key: key);
 
   @override
@@ -53,9 +52,19 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
     });
   }
 
+  // --- ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ СОЗДАНИЯ SnackBar ---
+  SnackBar _buildErrorSnackBar(String message) {
+    return SnackBar(
+      content: Text(message),
+      // backgroundColor больше не используется напрямую
+    );
+  }
+  // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
+
   Future<void> _verifyCode() async {
     if (_codeController.text.isEmpty) {
       if (mounted) {
+        // --- ИСПРАВЛЕНО: строка 40 ---
         ScaffoldMessenger.of(context).showSnackBar(
           _buildErrorSnackBar('Введите код подтверждения'),
         );
@@ -66,20 +75,24 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
     setState(() => _loading = true);
     try {
       // Регистрация: verifyCode используется после registerStep1
-      // final response = await ApiService.verifyCode(widget.emailOrPhone, _codeController.text);
+      // final response = await ApiService.verifyCode(widget.identifier, _codeController.text);
 
       // ИЛИ если используется registerStep2:
-      final response = await ApiService.registerStep2(widget.emailOrPhone, _codeController.text);
+      final response = await ApiService.registerStep2(widget.identifier, _codeController.text);
 
       if (response['success'] == true) {
-        // Успешная верификация кода для регистрации
-        // Переход к следующему шагу регистрации (например, ввод имени/фамилии)
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SetupProfileScreen(), // Используем SetupScreen как ввод данных
-          ),
-        );
+        if (widget.isLogin) {
+          // Успешная верификация кода для *входа*
+          // AuthService.saveTokens(response['access_token'], response['refresh_token']);
+          // Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          // Успешная верификация кода для *регистрации*
+          // Переход к следующему шагу регистрации (например, SetupProfileScreen)
+          Navigator.pushNamed(
+            context,
+            '/setup', // Убедитесь, что маршрут '/setup' определён
+          );
+        }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -98,24 +111,15 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
     }
   }
 
-  // --- ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ СОЗДАНИЯ SnackBar ---
-  SnackBar _buildErrorSnackBar(String message) {
-    return SnackBar(
-      content: Text(message),
-      // backgroundColor больше не используется напрямую
-    );
-  }
-  // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
-
   Future<void> _resendCode() async {
     if (!_resendEnabled) return;
 
     setState(() => _loading = true);
     try {
       // Отправляем код заново (предполагается, что на сервере есть эндпоинт resend-verification)
-      // final response = await ApiService.resendVerificationCode(widget.emailOrPhone);
+      // final response = await ApiService.resendVerificationCode(widget.identifier);
       // Временно используем login для повторной отправки, если сервер поддерживает
-      final response = await ApiService.login(widget.emailOrPhone);
+      final response = await ApiService.login(widget.identifier);
 
       if (response['success'] == true) {
         if (mounted) {
@@ -154,7 +158,7 @@ class _RegisterVerificationScreenState extends State<RegisterVerificationScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Введите код, отправленный на\n${widget.emailOrPhone}',
+              'Введите код, отправленный на\n${widget.identifier}',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),

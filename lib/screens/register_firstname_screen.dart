@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import 'register_username_screen.dart'; // Переход к следующему шагу
 
 class RegisterFirstnameScreen extends StatefulWidget {
   final String emailOrPhone; // Передаётся из предыдущего экрана
@@ -23,9 +22,19 @@ class _RegisterFirstnameScreenState extends State<RegisterFirstnameScreen> {
   final _lastNameController = TextEditingController();
   bool _loading = false;
 
+  // --- ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ СОЗДАНИЯ SnackBar ---
+  SnackBar _buildErrorSnackBar(String message) {
+    return SnackBar(
+      content: Text(message),
+      // backgroundColor больше не используется напрямую
+    );
+  }
+  // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
+
   Future<void> _goToNextStep() async {
     if (_firstNameController.text.trim().isEmpty || _lastNameController.text.trim().isEmpty) {
       if (mounted) {
+        // --- ИСПРАВЛЕНО: строка, аналогичная 40 ---
         ScaffoldMessenger.of(context).showSnackBar(
           _buildErrorSnackBar('Введите имя и фамилию'),
         );
@@ -41,15 +50,14 @@ class _RegisterFirstnameScreenState extends State<RegisterFirstnameScreen> {
 
       if (response['success'] == true) {
         // Данные успешно отправлены, переходим к следующему шагу (username)
-        Navigator.push(
+        Navigator.pushNamed(
           context,
-          MaterialPageRoute(
-            builder: (context) => RegisterUsernameScreen(
-              emailOrPhone: widget.emailOrPhone,
-              firstName: _firstNameController.text.trim(),
-              lastName: _lastNameController.text.trim(),
-            ), // Передаём данные в следующий экран
-          ),
+          '/register-username', // Убедитесь, что маршрут '/register-username' определён
+          arguments: {
+            'emailOrPhone': widget.emailOrPhone,
+            'firstName': _firstNameController.text.trim(),
+            'lastName': _lastNameController.text.trim(),
+          },
         );
       } else {
         if (mounted) {
@@ -68,15 +76,6 @@ class _RegisterFirstnameScreenState extends State<RegisterFirstnameScreen> {
       if (mounted) setState(() => _loading = false);
     }
   }
-
-  // --- ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ СОЗДАНИЯ SnackBar ---
-  SnackBar _buildErrorSnackBar(String message) {
-    return SnackBar(
-      content: Text(message),
-      // backgroundColor больше не используется напрямую
-    );
-  }
-  // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
 
   @override
   Widget build(BuildContext context) {

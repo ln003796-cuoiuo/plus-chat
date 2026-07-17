@@ -1,6 +1,7 @@
 // lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart'; // Импортируем AuthService
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,44 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   String _loginMethod = 'code'; // 'code' или 'password'
   bool _loading = false;
 
-  Future<void> _requestVerificationCode() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _loading = true);
-    try {
-      final identifier = _identifierController.text.trim();
-      final response = await ApiService.login(identifier);
-
-      if (response['success'] == true) {
-        // Перенаправление на экран верификации
-        Navigator.pushNamed(
-          context,
-          '/verify', // Предполагается, что маршрут '/verify' определён
-          arguments: {
-            'identifier': identifier,
-            'isLogin': true, // Указывает, что это вход, а не регистрация
-          },
-        );
-      } else {
-        if (mounted) {
-          // --- ИСПРАВЛЕНО: строка 82 ---
-          ScaffoldMessenger.of(context).showSnackBar(
-            _buildErrorSnackBar(response['error'] ?? 'Ошибка при входе'),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        // --- ИСПРАВЛЕНО: строка 48 ---
-        ScaffoldMessenger.of(context).showSnackBar(
-          _buildErrorSnackBar('Ошибка сети: $e'),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   // --- ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ СОЗДАНИЯ SnackBar ---
   SnackBar _buildErrorSnackBar(String message) {
     return SnackBar(
@@ -61,6 +24,44 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
   // --- /ВСПОМОГАТЕЛЬНЫЙ МЕТОД ---
+
+  Future<void> _requestVerificationCode() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _loading = true);
+    try {
+      final identifier = _identifierController.text.trim();
+      final response = await ApiService.login(identifier); // Вызов API для отправки кода
+
+      if (response['success'] == true) {
+        // Перенаправление на экран верификации
+        Navigator.pushNamed(
+          context,
+          '/verify', // Убедитесь, что маршрут '/verify' определён
+          arguments: {
+            'identifier': identifier,
+            'isLogin': true, // Указывает, что это вход, а не регистрация
+          },
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            // --- ИСПРАВЛЕНО: строка 40 (и аналогичные) ---
+            _buildErrorSnackBar(response['error'] ?? 'Ошибка при входе'),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          // --- ИСПРАВЛЕНО: строка 48 (и аналогичные) ---
+          _buildErrorSnackBar('Ошибка сети: $e'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   Future<void> _loginWithPassword() async {
     // TODO: Реализовать вход по паролю
@@ -74,8 +75,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // if (response['success'] == true) {
       //   // Сохранение токенов и переход в приложение
-      //   // AuthService.saveTokens(response['access_token'], response['refresh_token']);
-      //   // Navigator.pushReplacementNamed(context, '/home');
+      //   AuthService.saveTokens(response['access_token'], response['refresh_token']);
+      //   Navigator.pushReplacementNamed(context, '/home');
       // } else {
       //   if (mounted) {
       //     ScaffoldMessenger.of(context).showSnackBar(
@@ -86,6 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
+          // --- ИСПРАВЛЕНО: строка, аналогичная 48 ---
           _buildErrorSnackBar('Ошибка сети: $e'),
         );
       }
@@ -159,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/register'), // Предполагается, что маршрут '/register' определён
+                onPressed: () => Navigator.pushNamed(context, '/register'), // Убедитесь, что маршрут '/register' определён
                 child: const Text('Нет аккаунта? Зарегистрироваться'),
               ),
             ],

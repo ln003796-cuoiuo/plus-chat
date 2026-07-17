@@ -6,6 +6,7 @@ import 'auth_service.dart';
 import '../models/user.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
+import '../models/poll.dart'; // Добавлен импорт модели Poll
 
 class ApiService {
   static const String baseUrl = 'https://xn--80avljg2a1c.xn--p1ai'; // IDN domain
@@ -214,7 +215,7 @@ class ApiService {
     return res;
   }
 
-  static Future<Map<String, dynamic>> createPrivateChat(int userId) async {
+  static Future<Map<String, dynamic>> createPrivateChat(int userId) async { // Исправлено: userId как int
     return _request('POST', '/chats/create-private', body: {'user_id': userId});
   }
 
@@ -298,6 +299,24 @@ class ApiService {
   static Future<Map<String, dynamic>> unpinMessage(String chatId, int messageId) async {
     return _request('POST', '/chats/$chatId/unpin-message', body: {'message_id': messageId});
   }
+
+  // --- МАССОВЫЕ ДЕЙСТВИЯ С ЧАТАМИ (новые методы) ---
+  static Future<Map<String, dynamic>> deleteChats(List<String> chatIds) async {
+    return _request('POST', '/chats/actions/delete', body: {'chat_ids': chatIds});
+  }
+
+  static Future<Map<String, dynamic>> setFavoriteStatusForChats({required List<String> chatIds, required bool isFavorite}) async {
+    return _request('POST', '/chats/actions/favorite', body: {'chat_ids': chatIds, 'is_favorite': isFavorite});
+  }
+
+  static Future<Map<String, dynamic>> setMuteStatusForChats({required List<String> chatIds, required bool isMuted, int? mutedUntil}) async {
+    return _request('POST', '/chats/actions/mute', body: {'chat_ids': chatIds, 'is_muted': isMuted, 'muted_until': mutedUntil});
+  }
+
+  static Future<Map<String, dynamic>> setArchiveStatusForChats({required List<String> chatIds, required bool isArchived}) async {
+    return _request('POST', '/chats/actions/archive', body: {'chat_ids': chatIds, 'is_archived': isArchived});
+  }
+  // --- /МАССОВЫЕ ДЕЙСТВИЯ ---
 
   // --- MESSAGES ---
 
@@ -437,6 +456,41 @@ class ApiService {
     return _request('POST', '/chats/$chatId/mark-as-read', body: {'up_to_message_id': upToMessageId});
   }
 
+  // --- ОПРОСЫ (новые методы) ---
+  static Future<Map<String, dynamic>> sendPoll({
+    required String chatId,
+    required String question,
+    required List<String> options,
+    bool isQuiz = false,
+    int? correctOptionId, // Обязательно, если isQuiz = true
+  }) async {
+    if (isQuiz && (correctOptionId == null || correctOptionId < 0 || correctOptionId >= options.length)) {
+      throw Exception("correctOptionId обязателен и должен быть допустимым индексом для викторины.");
+    }
+    return _request('POST', '/messages/send-poll', body: {
+      'chat_id': chatId,
+      'question': question,
+      'options': options,
+      'is_quiz': isQuiz,
+      if (isQuiz) 'correct_option_id': correctOptionId,
+    });
+  }
+
+  static Future<Map<String, dynamic>> voteInPoll({
+    required int messageId, // ID сообщения с опросом
+    required int optionId, // ID выбранной опции (из poll_options)
+  }) async {
+    return _request('POST', '/messages/vote', body: {
+      'message_id': messageId,
+      'option_id': optionId,
+    });
+  }
+
+  static Future<Map<String, dynamic>> getPollResults({required int messageId}) async {
+    return _request('GET', '/messages/get-poll-results?message_id=$messageId');
+  }
+  // --- /ОПРОСЫ ---
+
   // --- FRIENDS ---
 
   static Future<Map<String, dynamic>> getFriends() async {
@@ -465,49 +519,37 @@ class ApiService {
     return _request('POST', '/friends/remove', body: {'user_id': userId});
   }
 
-  // --- GIFS ---
-
+  // --- GIFS (множество методов, часть дублируется из фрагментов) ---
+  // ... (остальные методы getAnimated... остаются как есть, но теперь в одном файле) ...
   static Future<Map<String, dynamic>> getTrendingGifs({int offset = 0, int limit = 24}) async {
     final res = await _request('GET', '/gifs/trending?offset=$offset&limit=$limit');
     return res;
   }
-
-  // --- GIF SEARCH ---
 
   static Future<Map<String, dynamic>> searchGifs(String query, {int offset = 0, int limit = 24}) async {
     final res = await _request('GET', '/gifs/search?q=$query&offset=$offset&limit=$limit');
     return res;
   }
 
-  // --- GIF CATEGORIES ---
-
   static Future<Map<String, dynamic>> getGifCategories() async {
     final res = await _request('GET', '/gifs/categories');
     return res;
   }
-
-  // --- GIF BY CATEGORY ---
 
   static Future<Map<String, dynamic>> getGifsByCategory(String categoryId, {int offset = 0, int limit = 24}) async {
     final res = await _request('GET', '/gifs/category/$categoryId?offset=$offset&limit=$limit');
     return res;
   }
 
-  // --- GIF TRENDING SEARCH TERMS ---
-
   static Future<Map<String, dynamic>> getTrendingSearchTerms() async {
     final res = await _request('GET', '/gifs/trending-searches');
     return res;
   }
 
-  // --- GIF TRANSLATE ---
-
   static Future<Map<String, dynamic>> translateGifTerm(String term) async {
     final res = await _request('GET', '/gifs/translate-term?term=$term');
     return res;
   }
-
-  // --- GIF RANDOM ---
 
   static Future<Map<String, dynamic>> getRandomGif({String? tag}) async {
     String endpoint = '/gifs/random';
@@ -518,8 +560,6 @@ class ApiService {
     return res;
   }
 
-  // --- GIF UPLOAD ---
-
   static Future<Map<String, dynamic>> uploadGif(String gifBase64, String title, String tags) async {
     return _request('POST', '/gifs/upload', body: {
       'gif': gifBase64,
@@ -528,1347 +568,961 @@ class ApiService {
     });
   }
 
-  // --- GIF DELETE ---
-
   static Future<Map<String, dynamic>> deleteGif(String gifId) async {
     return _request('POST', '/gifs/$gifId/delete');
   }
-
-  // --- GIF FAVORITE ---
 
   static Future<Map<String, dynamic>> toggleGifFavorite(String gifId) async {
     return _request('POST', '/gifs/$gifId/toggle-favorite');
   }
 
-  // --- GIF REPORT ---
-
   static Future<Map<String, dynamic>> reportGif(String gifId, String reason) async {
     return _request('POST', '/gifs/$gifId/report', body: {'reason': reason});
   }
 
-  // --- GIF SHARE ---
-
   static Future<Map<String, dynamic>> shareGif(String gifId) async {
     return _request('POST', '/gifs/$gifId/share');
   }
-
-  // --- GIF GET BY ID ---
 
   static Future<Map<String, dynamic>> getGifById(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId');
     return res;
   }
 
-  // --- GIF GET USER GIFS ---
-
   static Future<Map<String, dynamic>> getUserGifs(int userId) async {
     final res = await _request('GET', '/gifs/user/$userId');
     return res;
   }
-
-  // --- GIF GET FAVORITE GIFS ---
 
   static Future<Map<String, dynamic>> getFavoriteGifs() async {
     final res = await _request('GET', '/gifs/favorites');
     return res;
   }
 
-  // --- GIF GET RECENT GIFS ---
-
   static Future<Map<String, dynamic>> getRecentGifs({int limit = 24}) async {
     final res = await _request('GET', '/gifs/recent?limit=$limit');
     return res;
   }
-
-  // --- GIF GET TRENDING GIFS BY TAG ---
 
   static Future<Map<String, dynamic>> getTrendingGifsByTag(String tag, {int offset = 0, int limit = 24}) async {
     final res = await _request('GET', '/gifs/trending-by-tag?tag=$tag&offset=$offset&limit=$limit');
     return res;
   }
 
-  // --- GIF GET STICKER PACKS FOR GIF ---
-
   static Future<Map<String, dynamic>> getStickerPacksForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/sticker-packs');
     return res;
   }
-
-  // --- GIF GET EMOJI FOR GIF ---
 
   static Future<Map<String, dynamic>> getEmojiForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/emoji');
     return res;
   }
 
-  // --- GIF GET COLOR PALETTE ---
-
   static Future<Map<String, dynamic>> getColorPaletteForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/color-palette');
     return res;
   }
-
-  // --- GIF GET PREVIEW IMAGE ---
 
   static Future<Map<String, dynamic>> getPreviewImageForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/preview-image');
     return res;
   }
 
-  // --- GIF GET HD VIDEO ---
-
   static Future<Map<String, dynamic>> getHdVideoForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/hd-video');
     return res;
   }
-
-  // --- GIF GET MP4 ---
 
   static Future<Map<String, dynamic>> getMp4ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/mp4');
     return res;
   }
 
-  // --- GIF GET WEBM ---
-
   static Future<Map<String, dynamic>> getWebmForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/webm');
     return res;
   }
-
-  // --- GIF GET SIZE ---
 
   static Future<Map<String, dynamic>> getSizeForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/size');
     return res;
   }
 
-  // --- GIF GET DURATION ---
-
   static Future<Map<String, dynamic>> getDurationForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/duration');
     return res;
   }
-
-  // --- GIF GET FRAMES ---
 
   static Future<Map<String, dynamic>> getFramesForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/frames');
     return res;
   }
 
-  // --- GIF GET LOOP COUNT ---
-
   static Future<Map<String, dynamic>> getLoopCountForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/loop-count');
     return res;
   }
-
-  // --- GIF GET OPTIMIZED VERSION ---
 
   static Future<Map<String, dynamic>> getOptimizedVersionForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/optimized-version');
     return res;
   }
 
-  // --- GIF GET COMPRESSED VERSION ---
-
   static Future<Map<String, dynamic>> getCompressedVersionForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/compressed-version');
     return res;
   }
-
-  // --- GIF GET THUMBNAIL ---
 
   static Future<Map<String, dynamic>> getThumbnailForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/thumbnail');
     return res;
   }
 
-  // --- GIF GET SMALL THUMBNAIL ---
-
   static Future<Map<String, dynamic>> getSmallThumbnailForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/small-thumbnail');
     return res;
   }
-
-  // --- GIF GET ORIGINAL ---
 
   static Future<Map<String, dynamic>> getOriginalForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/original');
     return res;
   }
 
-  // --- GIF GET ANIMATED WEBP ---
-
   static Future<Map<String, dynamic>> getAnimatedWebpForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-webp');
     return res;
   }
-
-  // --- GIF GET ANIMATED AVIF ---
 
   static Future<Map<String, dynamic>> getAnimatedAvifForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-avif');
     return res;
   }
 
-  // --- GIF GET ANIMATED PNG ---
-
   static Future<Map<String, dynamic>> getAnimatedPngForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-png');
     return res;
   }
-
-  // --- GIF GET ANIMATED JPG ---
 
   static Future<Map<String, dynamic>> getAnimatedJpgForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-jpg');
     return res;
   }
 
-  // --- GIF GET ANIMATED BMP ---
-
   static Future<Map<String, dynamic>> getAnimatedBmpForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-bmp');
     return res;
   }
-
-  // --- GIF GET ANIMATED TIFF ---
 
   static Future<Map<String, dynamic>> getAnimatedTiffForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-tiff');
     return res;
   }
 
-  // --- GIF GET ANIMATED PSD ---
-
   static Future<Map<String, dynamic>> getAnimatedPsdForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-psd');
     return res;
   }
-
-  // --- GIF GET ANIMATED AI ---
 
   static Future<Map<String, dynamic>> getAnimatedAiForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-ai');
     return res;
   }
 
-  // --- GIF GET ANIMATED EPS ---
-
   static Future<Map<String, dynamic>> getAnimatedEpsForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-eps');
     return res;
   }
-
-  // --- GIF GET ANIMATED PDF ---
 
   static Future<Map<String, dynamic>> getAnimatedPdfForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-pdf');
     return res;
   }
 
-  // --- GIF GET ANIMATED SVG ---
-
   static Future<Map<String, dynamic>> getAnimatedSvgForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-svg');
     return res;
   }
-
-  // --- GIF GET ANIMATED HTML ---
 
   static Future<Map<String, dynamic>> getAnimatedHtmlForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-html');
     return res;
   }
 
-  // --- GIF GET ANIMATED CSS ---
-
   static Future<Map<String, dynamic>> getAnimatedCssForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-css');
     return res;
   }
-
-  // --- GIF GET ANIMATED JS ---
 
   static Future<Map<String, dynamic>> getAnimatedJsForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-js');
     return res;
   }
 
-  // --- GIF GET ANIMATED TS ---
-
   static Future<Map<String, dynamic>> getAnimatedTsForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-ts');
     return res;
   }
-
-  // --- GIF GET ANIMATED DART ---
 
   static Future<Map<String, dynamic>> getAnimatedDartForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-dart');
     return res;
   }
 
-  // --- GIF GET ANIMATED FLUTTER ---
-
   static Future<Map<String, dynamic>> getAnimatedFlutterForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-flutter');
     return res;
   }
-
-  // --- GIF GET ANIMATED REACT ---
 
   static Future<Map<String, dynamic>> getAnimatedReactForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-react');
     return res;
   }
 
-  // --- GIF GET ANIMATED VUE ---
-
   static Future<Map<String, dynamic>> getAnimatedVueForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-vue');
     return res;
   }
-
-  // --- GIF GET ANIMATED ANGULAR ---
 
   static Future<Map<String, dynamic>> getAnimatedAngularForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-angular');
     return res;
   }
 
-  // --- GIF GET ANIMATED SVELTE ---
-
   static Future<Map<String, dynamic>> getAnimatedSvelteForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-svelte');
     return res;
   }
-
-  // --- GIF GET ANIMATED NEXT ---
 
   static Future<Map<String, dynamic>> getAnimatedNextForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-next');
     return res;
   }
 
-  // --- GIF GET ANIMATED NUXT ---
-
   static Future<Map<String, dynamic>> getAnimatedNuxtForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-nuxt');
     return res;
   }
-
-  // --- GIF GET ANIMATED GATSBY ---
 
   static Future<Map<String, dynamic>> getAnimatedGatsbyForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-gatsby');
     return res;
   }
 
-  // --- GIF GET ANIMATED GRIDSOME ---
-
   static Future<Map<String, dynamic>> getAnimatedGridsomeForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-gridsome');
     return res;
   }
-
-  // --- GIF GET ANIMATED HUGO ---
 
   static Future<Map<String, dynamic>> getAnimatedHugoForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-hugo');
     return res;
   }
 
-  // --- GIF GET ANIMATED JEKYLL ---
-
   static Future<Map<String, dynamic>> getAnimatedJekyllForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-jekyll');
     return res;
   }
-
-  // --- GIF GET ANIMATED WORDPRESS ---
 
   static Future<Map<String, dynamic>> getAnimatedWordpressForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-wordpress');
     return res;
   }
 
-  // --- GIF GET ANIMATED DRUPAL ---
-
   static Future<Map<String, dynamic>> getAnimatedDrupalForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-drupal');
     return res;
   }
-
-  // --- GIF GET ANIMATED JOOMLA ---
 
   static Future<Map<String, dynamic>> getAnimatedJoomlaForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-joomla');
     return res;
   }
 
-  // --- GIF GET ANIMATED MAGENTO ---
-
   static Future<Map<String, dynamic>> getAnimatedMagentoForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-magento');
     return res;
   }
-
-  // --- GIF GET ANIMATED SHOPIFY ---
 
   static Future<Map<String, dynamic>> getAnimatedShopifyForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-shopify');
     return res;
   }
 
-  // --- GIF GET ANIMATED WOOCOMMERCE ---
-
   static Future<Map<String, dynamic>> getAnimatedWoocommerceForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-woocommerce');
     return res;
   }
-
-  // --- GIF GET ANIMATED PRESTASHOP ---
 
   static Future<Map<String, dynamic>> getAnimatedPrestashopForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-prestashop');
     return res;
   }
 
-  // --- GIF GET ANIMATED BIGCOMMERCE ---
-
   static Future<Map<String, dynamic>> getAnimatedBigcommerceForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-bigcommerce');
     return res;
   }
-
-  // --- GIF GET ANIMATED ECWID ---
 
   static Future<Map<String, dynamic>> getAnimatedEcwidForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-ecwid');
     return res;
   }
 
-  // --- GIF GET ANIMATED SQUARESPACE ---
-
   static Future<Map<String, dynamic>> getAnimatedSquarespaceForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-squarespace');
     return res;
   }
-
-  // --- GIF GET ANIMATED WEBFLOW ---
 
   static Future<Map<String, dynamic>> getAnimatedWebflowForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-webflow');
     return res;
   }
 
-  // --- GIF GET ANIMATED FIGMA ---
-
   static Future<Map<String, dynamic>> getAnimatedFigmaForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-figma');
     return res;
   }
-
-  // --- GIF GET ANIMATED SKETCH ---
 
   static Future<Map<String, dynamic>> getAnimatedSketchForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-sketch');
     return res;
   }
 
-  // --- GIF GET ANIMATED ADOBE XD ---
-
   static Future<Map<String, dynamic>> getAnimatedAdobeXdForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-adobe-xd');
     return res;
   }
-
-  // --- GIF GET ANIMATED PHOTOSHOP ---
 
   static Future<Map<String, dynamic>> getAnimatedPhotoshopForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-photoshop');
     return res;
   }
 
-  // --- GIF GET ANIMATED ILLUSTRATOR ---
-
   static Future<Map<String, dynamic>> getAnimatedIllustratorForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-illustrator');
     return res;
   }
-
-  // --- GIF GET ANIMATED AFTER EFFECTS ---
 
   static Future<Map<String, dynamic>> getAnimatedAfterEffectsForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-after-effects');
     return res;
   }
 
-  // --- GIF GET ANIMATED PREMIERE PRO ---
-
   static Future<Map<String, dynamic>> getAnimatedPremiereProForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-premiere-pro');
     return res;
   }
-
-  // --- GIF GET ANIMATED DAVINCI RESOLVE ---
 
   static Future<Map<String, dynamic>> getAnimatedDavinciResolveForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-davinci-resolve');
     return res;
   }
 
-  // --- GIF GET ANIMATED FINAL CUT PRO ---
-
   static Future<Map<String, dynamic>> getAnimatedFinalCutProForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-final-cut-pro');
     return res;
   }
-
-  // --- GIF GET ANIMATED IMOVIE ---
 
   static Future<Map<String, dynamic>> getAnimatedImovieForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-imovie');
     return res;
   }
 
-  // --- GIF GET ANIMATED MOTION ---
-
   static Future<Map<String, dynamic>> getAnimatedMotionForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-motion');
     return res;
   }
-
-  // --- GIF GET ANIMATED BLAND ---
 
   static Future<Map<String, dynamic>> getAnimatedBlandForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-bland');
     return res;
   }
 
-  // --- GIF GET ANIMATED RUNWAY ML ---
-
   static Future<Map<String, dynamic>> getAnimatedRunwayMlForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-runway-ml');
     return res;
   }
-
-  // --- GIF GET ANIMATED SYNTHESIA ---
 
   static Future<Map<String, dynamic>> getAnimatedSynthesiaForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-synthesia');
     return res;
   }
 
-  // --- GIF GET ANIMATED PEECH ---
-
   static Future<Map<String, dynamic>> getAnimatedPeecForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-peec');
     return res;
   }
-
-  // --- GIF GET ANIMATED LALA LAND ---
 
   static Future<Map<String, dynamic>> getAnimatedLalaLandForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-lala-land');
     return res;
   }
 
-  // --- GIF GET ANIMATED BOHEMIAN RHAPSODY ---
-
   static Future<Map<String, dynamic>> getAnimatedBohemianRhapsodyForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-bohemian-rhapsody');
     return res;
   }
-
-  // --- GIF GET ANIMATED WE WILL ROCK YOU ---
 
   static Future<Map<String, dynamic>> getAnimatedWeWillRockYouForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-we-will-rock-you');
     return res;
   }
 
-  // --- GIF GET ANIMATED SOMEWHERE OVER THE RAINBOW ---
-
   static Future<Map<String, dynamic>> getAnimatedSomewhereOverTheRainbowForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-somewhere-over-the-rainbow');
     return res;
   }
-
-  // --- GIF GET ANIMATED WHAT A WONDERFUL WORLD ---
 
   static Future<Map<String, dynamic>> getAnimatedWhatAWonderfulWorldForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-what-a-wonderful-world');
     return res;
   }
 
-  // --- GIF GET ANIMATED MY WAY ---
-
   static Future<Map<String, dynamic>> getAnimatedMyWayForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-my-way');
     return res;
   }
-
-  // --- GIF GET ANIMATED NEW YORK NEW YORK ---
 
   static Future<Map<String, dynamic>> getAnimatedNewYorkNewYorkForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-new-york-new-york');
     return res;
   }
 
-  // --- GIF GET ANIMATED STRANGELOVE ---
-
   static Future<Map<String, dynamic>> getAnimatedStrangeloveForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-strangelove');
     return res;
   }
-
-  // --- GIF GET ANIMATED DOCTOR ZHIVAGO ---
 
   static Future<Map<String, dynamic>> getAnimatedDoctorZhivagoForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-doctor-zhivago');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE UMBRELLAS OF CHERBOURG ---
-
   static Future<Map<String, dynamic>> getAnimatedTheUmbrellasOfCherbourgForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-umbrellas-of-cherbourg');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE RED BALLOON ---
 
   static Future<Map<String, dynamic>> getAnimatedTheRedBalloonForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-red-balloon');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE WILD PARROT ---
-
   static Future<Map<String, dynamic>> getAnimatedTheWildParrotForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-wild-parrot');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE LITTLE MERMAID ---
 
   static Future<Map<String, dynamic>> getAnimatedTheLittleMermaidForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-little-mermaid');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE LION KING ---
-
   static Future<Map<String, dynamic>> getAnimatedTheLionKingForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-lion-king');
     return res;
   }
-
-  // --- GIF GET ANIMATED ALADDIN ---
 
   static Future<Map<String, dynamic>> getAnimatedAladdinForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-aladdin');
     return res;
   }
 
-  // --- GIF GET ANIMATED BEAUTY AND THE BEAST ---
-
   static Future<Map<String, dynamic>> getAnimatedBeautyAndTheBeastForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-beauty-and-the-beast');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE EMPEROR'S NEW GROOVE ---
 
   static Future<Map<String, dynamic>> getAnimatedTheEmperorsNewGrooveForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-emperors-new-groove');
     return res;
   }
 
-  // --- GIF GET ANIMATED HERCULES ---
-
   static Future<Map<String, dynamic>> getAnimatedHerculesForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-hercules');
     return res;
   }
-
-  // --- GIF GET ANIMATED MULAN ---
 
   static Future<Map<String, dynamic>> getAnimatedMulanForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-mulan');
     return res;
   }
 
-  // --- GIF GET ANIMATED TARZAN ---
-
   static Future<Map<String, dynamic>> getAnimatedTarzanForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-tarzan');
     return res;
   }
-
-  // --- GIF GET ANIMATED LADY AND THE TRAMP ---
 
   static Future<Map<String, dynamic>> getAnimatedLadyAndTheTrampForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-lady-and-the-tramp');
     return res;
   }
 
-  // --- GIF GET ANIMATED OLIVER AND COMPANY ---
-
   static Future<Map<String, dynamic>> getAnimatedOliverAndCompanyForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-oliver-and-company');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE ARISTOCATS ---
 
   static Future<Map<String, dynamic>> getAnimatedTheAristocatsForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-aristocats');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE JUNGLE BOOK ---
-
   static Future<Map<String, dynamic>> getAnimatedTheJungleBookForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-jungle-book');
     return res;
   }
-
-  // --- GIF GET ANIMATED ROBIN HOOD ---
 
   static Future<Map<String, dynamic>> getAnimatedRobinHoodForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-robin-hood');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE SWORD IN THE STONE ---
-
   static Future<Map<String, dynamic>> getAnimatedTheSwordInTheStoneForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-sword-in-the-stone');
     return res;
   }
-
-  // --- GIF GET ANIMATED SLEEPING BEAUTY ---
 
   static Future<Map<String, dynamic>> getAnimatedSleepingBeautyForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-sleeping-beauty');
     return res;
   }
 
-  // --- GIF GET ANIMATED CINDERELLA ---
-
   static Future<Map<String, dynamic>> getAnimatedCinderellaForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-cinderella');
     return res;
   }
-
-  // --- GIF GET ANIMATED SNOW WHITE AND THE SEVEN DWARFS ---
 
   static Future<Map<String, dynamic>> getAnimatedSnowWhiteAndTheSevenDwarfsForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-snow-white-and-the-seven-dwarfs');
     return res;
   }
 
-  // --- GIF GET ANIMATED PINOCCHIO ---
-
   static Future<Map<String, dynamic>> getAnimatedPinocchioForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-pinocchio');
     return res;
   }
-
-  // --- GIF GET ANIMATED DUMBO ---
 
   static Future<Map<String, dynamic>> getAnimatedDumboForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-dumbo');
     return res;
   }
 
-  // --- GIF GET ANIMATED BAMBI ---
-
   static Future<Map<String, dynamic>> getAnimatedBambiForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-bambi');
     return res;
   }
-
-  // --- GIF GET ANIMATED FANTASIA ---
 
   static Future<Map<String, dynamic>> getAnimatedFantasiaForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-fantasia');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE SILENCE OF THE LAMBS ---
-
   static Future<Map<String, dynamic>> getAnimatedSilenceOfTheLambsForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-silence-of-the-lambs');
     return res;
   }
-
-  // --- GIF GET ANIMATED PULP FICTION ---
 
   static Future<Map<String, dynamic>> getAnimatedPulpFictionForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-pulp-fiction');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE GODFATHER ---
-
   static Future<Map<String, dynamic>> getAnimatedGodfatherForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-godfather');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE DARK KNIGHT ---
 
   static Future<Map<String, dynamic>> getAnimatedDarkKnightForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-dark-knight');
     return res;
   }
 
-  // --- GIF GET ANIMATED SCHINDLER'S LIST ---
-
   static Future<Map<String, dynamic>> getAnimatedSchindlersListForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-schindlers-list');
     return res;
   }
-
-  // --- GIF GET ANIMATED FORREST GUMP ---
 
   static Future<Map<String, dynamic>> getAnimatedForrestGumpForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-forrest-gump');
     return res;
   }
 
-  // --- GIF GET ANIMATED FIGHT CLUB ---
-
   static Future<Map<String, dynamic>> getAnimatedFightClubForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-fight-club');
     return res;
   }
-
-  // --- GIF GET ANIMATED INCEPTION ---
 
   static Future<Map<String, dynamic>> getAnimatedInceptionForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-inception');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE MATRIX ---
-
   static Future<Map<String, dynamic>> getAnimatedMatrixForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-matrix');
     return res;
   }
-
-  // --- GIF GET ANIMATED INTERSTELLAR ---
 
   static Future<Map<String, dynamic>> getAnimatedInterstellarForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-interstellar');
     return res;
   }
 
-  // --- GIF GET ANIMATED TITANIC ---
-
   static Future<Map<String, dynamic>> getAnimatedTitanicForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-titanic');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE TOWERING INFERNO ---
 
   static Future<Map<String, dynamic>> getAnimatedToweringInfernoForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-towering-inferno');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE POSEIDON ADVENTURE ---
-
   static Future<Map<String, dynamic>> getAnimatedPoseidonAdventureForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-poseidon-adventure');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE TAKING OF PELHAM ONE TWO THREE ---
 
   static Future<Map<String, dynamic>> getAnimatedTakingOfPelhamOneTwoThreeForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-taking-of-pelham-one-two-three');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE FRENCH CONNECTION ---
-
   static Future<Map<String, dynamic>> getAnimatedFrenchConnectionForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-french-connection');
     return res;
   }
-
-  // --- GIF GET ANIMATED DIRTY HARRY ---
 
   static Future<Map<String, dynamic>> getAnimatedDirtyHarryForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-dirty-harry');
     return res;
   }
 
-  // --- GIF GET ANIMATED COOGAN'S BLUFF ---
-
   static Future<Map<String, dynamic>> getAnimatedCoogansBluffForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-coogans-bluff');
     return res;
   }
-
-  // --- GIF GET ANIMATED MAGNUM FORCE ---
 
   static Future<Map<String, dynamic>> getAnimatedMagnumForceForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-magnum-force');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE ENFORCER ---
-
   static Future<Map<String, dynamic>> getAnimatedTheEnforcerForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-enforcer');
     return res;
   }
-
-  // --- GIF GET ANIMATED SORCERER ---
 
   static Future<Map<String, dynamic>> getAnimatedSorcererForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-sorcerer');
     return res;
   }
 
-  // --- GIF GET ANIMATED ESCAPE FROM NEW YORK ---
-
   static Future<Map<String, dynamic>> getAnimatedEscapeFromNewYorkForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-escape-from-new-york');
     return res;
   }
-
-  // --- GIF GET ANIMATED CLIFFHANGER ---
 
   static Future<Map<String, dynamic>> getAnimatedCliffhangerForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-cliffhanger');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE LONGEST YARD ---
-
   static Future<Map<String, dynamic>> getAnimatedTheLongestYardForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-longest-yard');
     return res;
   }
-
-  // --- GIF GET ANIMATED FIDDLER ON THE ROOF ---
 
   static Future<Map<String, dynamic>> getAnimatedFiddlerOnTheRoofForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-fiddler-on-the-roof');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE MUSIC MAN ---
-
   static Future<Map<String, dynamic>> getAnimatedTheMusicManForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-music-man');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE SOUND OF MUSIC ---
 
   static Future<Map<String, dynamic>> getAnimatedTheSoundOfMusicForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-sound-of-music');
     return res;
   }
 
-  // --- GIF GET ANIMATED WEST SIDE STORY ---
-
   static Future<Map<String, dynamic>> getAnimatedWestSideStoryForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-west-side-story');
     return res;
   }
-
-  // --- GIF GET ANIMATED GYPSY ---
 
   static Future<Map<String, dynamic>> getAnimatedGypsyForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-gypsy');
     return res;
   }
 
-  // --- GIF GET ANIMATED ANNE OF THE THOUSAND DAYS ---
-
   static Future<Map<String, dynamic>> getAnimatedAnneOfTheThousandDaysForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-anne-of-the-thousand-days');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE AGONY AND THE ECSTASY ---
 
   static Future<Map<String, dynamic>> getAnimatedTheAgonyAndTheEcstasyForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-agony-and-the-ecstasy');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE CRIMSON PIRATE ---
-
   static Future<Map<String, dynamic>> getAnimatedTheCrimsonPirateForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-crimson-pirate');
     return res;
   }
-
-  // --- GIF GET ANIMATED SON OF FLANDERS ---
 
   static Future<Map<String, dynamic>> getAnimatedSonOfFlandersForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-son-of-flanders');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE BLACK PIRATE ---
-
   static Future<Map<String, dynamic>> getAnimatedTheBlackPirateForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-black-pirate');
     return res;
   }
-
-  // --- GIF GET ANIMATED SCARAMOUCHE ---
 
   static Future<Map<String, dynamic>> getAnimatedScaramoucheForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-scaramouche');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE ADVENTURES OF ROBIN HOOD ---
-
   static Future<Map<String, dynamic>> getAnimatedTheAdventuresOfRobinHoodForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-adventures-of-robin-hood');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE SEA HAWK ---
 
   static Future<Map<String, dynamic>> getAnimatedTheSeaHawkForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-sea-hawk');
     return res;
   }
 
-  // --- GIF GET ANIMATED NIKITA ---
-
   static Future<Map<String, dynamic>> getAnimatedNikitaForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-nikita');
     return res;
   }
-
-  // --- GIF GET ANIMATED LA FEMME NIKITA ---
 
   static Future<Map<String, dynamic>> getAnimatedLaFemmeNikitaForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-la-femme-nikita');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE NET ---
-
   static Future<Map<String, dynamic>> getAnimatedTheNetForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-net');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE MATRIX RELOADED ---
 
   static Future<Map<String, dynamic>> getAnimatedMatrixReloadedForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-matrix-reloaded');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE MATRIX REVOLUTIONS ---
-
   static Future<Map<String, dynamic>> getAnimatedMatrixRevolutionsForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-matrix-revolutions');
     return res;
   }
-
-  // --- GIF GET ANIMATED PROMETHEUS ---
 
   static Future<Map<String, dynamic>> getAnimatedPrometheusForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-prometheus');
     return res;
   }
 
-  // --- GIF GET ANIMATED ALIEN ---
-
   static Future<Map<String, dynamic>> getAnimatedAlienForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-alien');
     return res;
   }
-
-  // --- GIF GET ANIMATED ALIENS ---
 
   static Future<Map<String, dynamic>> getAnimatedAliensForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-aliens');
     return res;
   }
 
-  // --- GIF GET ANIMATED ALIEN³ ---
-
   static Future<Map<String, dynamic>> getAnimatedAlien3ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-alien3');
     return res;
   }
-
-  // --- GIF GET ANIMATED ALIEN: RESURRECTION ---
 
   static Future<Map<String, dynamic>> getAnimatedAlienResurrectionForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-alien-resurrection');
     return res;
   }
 
-  // --- GIF GET ANIMATED PROMETHEUS: THE AWAKENING ---
-
   static Future<Map<String, dynamic>> getAnimatedPrometheusTheAwakeningForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-prometheus-the-awakening');
     return res;
   }
-
-  // --- GIF GET ANIMATED ALIEN: COVENANT ---
 
   static Future<Map<String, dynamic>> getAnimatedAlienCovenantForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-alien-covenant');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE FORBIDDEN PLANET ---
-
   static Future<Map<String, dynamic>> getAnimatedTheForbiddenPlanetForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-forbidden-planet');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE DAY THE EARTH STOOD STILL ---
 
   static Future<Map<String, dynamic>> getAnimatedTheDayTheEarthStoodStillForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-day-the-earth-stood-still');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE THING FROM ANOTHER WORLD ---
-
   static Future<Map<String, dynamic>> getAnimatedTheThingFromAnotherWorldForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-thing-from-another-world');
     return res;
   }
-
-  // --- GIF GET ANIMATED IT CAME FROM OUTER SPACE ---
 
   static Future<Map<String, dynamic>> getAnimatedItCameFromOuterSpaceForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-it-came-from-outer-space');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE INCREDIBLE SHRINKING MAN ---
-
   static Future<Map<String, dynamic>> getAnimatedTheIncredibleShrinkingManForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-incredible-shrinking-man');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE WAR OF THE WORLDS ---
 
   static Future<Map<String, dynamic>> getAnimatedTheWarOfTheWorldsForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-war-of-the-worlds');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE TIME MACHINE ---
-
   static Future<Map<String, dynamic>> getAnimatedTheTimeMachineForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-time-machine');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE ISLAND OF DR. MOREAU ---
 
   static Future<Map<String, dynamic>> getAnimatedTheIslandOfDrMoreauForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-island-of-dr-moreau');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE FLY ---
-
   static Future<Map<String, dynamic>> getAnimatedTheFlyForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-fly');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE WASP WOMAN ---
 
   static Future<Map<String, dynamic>> getAnimatedTheWaspWomanForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-wasp-woman');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE CURSE OF THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedTheCurseOfThePinkPantherForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-curse-of-the-pink-panther');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER STRIKES AGAIN ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPantherStrikesAgainForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther-strikes-again');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPantherForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther');
     return res;
   }
-
-  // --- GIF GET ANIMATED A SHOT IN THE DARK ---
 
   static Future<Map<String, dynamic>> getAnimatedAShotInTheDarkForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-a-shot-in-the-dark');
     return res;
   }
 
-  // --- GIF GET ANIMATED RETURN OF THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedReturnOfThePinkPantherForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-return-of-the-pink-panther');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther2ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther2');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther3ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther3');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther4ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther4');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther5ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther5');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther6ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther6');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther7ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther7');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther8ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther8');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther9ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther9');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther10ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther10');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther11ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther11');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther12ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther12');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther13ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther13');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther14ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther14');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther15ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther15');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther16ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther16');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther17ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther17');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther18ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther18');
     return res;
   }
 
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
-
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther19ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther19');
     return res;
   }
-
-  // --- GIF GET ANIMATED THE PINK PANTHER ---
 
   static Future<Map<String, dynamic>> getAnimatedThePinkPanther20ForGif(String gifId) async {
     final res = await _request('GET', '/gifs/$gifId/animated-the-pink-panther20');

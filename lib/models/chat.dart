@@ -1,9 +1,7 @@
 // lib/models/chat.dart
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-// --- ДОБАВЛЕНО: импорт User ---
-import 'user.dart';
-// --- /ДОБАВЛЕНО ---
+import 'user.dart'; // Импортируем User
 
 class Chat {
   final String id;
@@ -11,7 +9,7 @@ class Chat {
   final String? title; // может быть null для приватных чатов
   final String? description;
   final String? avatarUrl;
-  // --- ИСПРАВЛЕНО: теперь List<User>? правильно типизован ---
+  // --- ИСПРАВЛЕНО: тип members ---
   final List<User>? members; // может быть null для каналов/ботов?
   // --- /ИСПРАВЛЕНО ---
   final int unreadCount;
@@ -19,12 +17,12 @@ class Chat {
   final String lastMessageTime;
   final bool isOnline; // для приватных чатов
 
-  // --- ДОБАВЛЕНО: отсутствующие поля из предыдущего обновления ---
-  final bool isMuted; // НОВОЕ
-  final bool isArchived; // НОВОЕ
-  final bool isFavorite; // НОВОЕ
-  final String? mutedUntil; // может быть null, формат даты/времени
-  final int? lastReadMessageId; // Может быть null
+  // --- ДОБАВЛЕНО: отсутствующие поля ---
+  final bool isMuted;
+  final bool isArchived;
+  final bool isFavorite;
+  final String? mutedUntil;
+  final int? lastReadMessageId;
   // --- /ДОБАВЛЕНО ---
 
   Chat({
@@ -33,17 +31,15 @@ class Chat {
     this.title,
     this.description,
     this.avatarUrl,
-    // --- ИСПРАВЛЕНО: инициализация members ---
     this.members,
-    // --- /ИСПРАВЛЕНО ---
     required this.unreadCount,
     required this.lastMessageText,
     required this.lastMessageTime,
     required this.isOnline,
     // --- ИНИЦИАЛИЗАЦИЯ новых полей ---
-    this.isMuted = false, // по умолчанию false
-    this.isArchived = false, // по умолчанию false
-    this.isFavorite = false, // по умолчанию false
+    this.isMuted = false,
+    this.isArchived = false,
+    this.isFavorite = false,
     this.mutedUntil,
     this.lastReadMessageId,
     // --- /ИНИЦИАЛИЗАЦИЯ ---
@@ -66,11 +62,11 @@ class Chat {
       lastMessageTime: json['last_message_time'] as String? ?? '',
       isOnline: json['is_online'] as bool? ?? false,
       // --- ЧТЕНИЕ новых полей из JSON ---
-      isMuted: json['is_muted'] as bool? ?? false, // НОВОЕ
-      isArchived: json['is_archived'] as bool? ?? false, // НОВОЕ
-      isFavorite: json['is_favorite'] as bool? ?? false, // НОВОЕ
-      mutedUntil: json['muted_until'] as String?, // может быть null
-      lastReadMessageId: json['last_read_message_id'] as int?, // может быть null
+      isMuted: json['is_muted'] as bool? ?? false,
+      isArchived: json['is_archived'] as bool? ?? false,
+      isFavorite: json['is_favorite'] as bool? ?? false,
+      mutedUntil: json['muted_until'] as String?,
+      lastReadMessageId: json['last_read_message_id'] as int?,
       // --- /ЧТЕНИЕ ---
     );
   }
@@ -90,9 +86,9 @@ class Chat {
       'last_message_time': lastMessageTime,
       'is_online': isOnline,
       // --- ЗАПИСЬ новых полей в JSON ---
-      'is_muted': isMuted, // НОВОЕ
-      'is_archived': isArchived, // НОВОЕ
-      'is_favorite': isFavorite, // НОВОЕ
+      'is_muted': isMuted,
+      'is_archived': isArchived,
+      'is_favorite': isFavorite,
       'muted_until': mutedUntil,
       'last_read_message_id': lastReadMessageId,
       // --- /ЗАПИСЬ ---
